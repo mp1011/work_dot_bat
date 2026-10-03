@@ -1,0 +1,7 @@
+node_modules/
+# Machine-specific registry of target repos (a committed projects.example.json is the template).
+projects.json
+.work_dot_bat/
+logs/
+.claims/
+dist/

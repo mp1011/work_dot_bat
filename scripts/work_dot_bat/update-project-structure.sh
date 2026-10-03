@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# work_dot_bat managed file — DO NOT EDIT; overwritten by `work_dot_bat sync`.
+# file: scripts/work_dot_bat/update-project-structure.sh
+# version: 2.0.0
+# date: 2026-10-03
+# sha256: 321774493341145dd1e3711584fd286c38f1bcbed8a5996b7fa50b9d3740473a
+# Regenerate the machine-owned file listing in agent_docs/03_project_structure.md,
+# preserving every human-written summary. See the `work_dot_bat update-project-structure` command.
+#
+#   scripts/work_dot_bat/update-project-structure.sh            # rewrite the doc in place
+#   scripts/work_dot_bat/update-project-structure.sh --check    # report drift, exit non-zero if any
+set -euo pipefail
+bin="${WORK_DOT_BAT_BIN:-work_dot_bat}"
+if ! command -v "$bin" >/dev/null 2>&1; then
+  echo "work_dot_bat binary not found: put it on PATH or set WORK_DOT_BAT_BIN." >&2
+  exit 127
+fi
+exec "$bin" update-project-structure "$@"

@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# POSIX launcher: runs the work_dot_bat binary with the given tool and arguments.
+# Binary lookup: $WORK_DOT_BAT_BIN, then `work_dot_bat` on PATH, then a release build in ../dist.
+set -euo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -n "${WORK_DOT_BAT_BIN:-}" ]; then
+  bin="$WORK_DOT_BAT_BIN"
+elif command -v work_dot_bat >/dev/null 2>&1 && [ "$(command -v work_dot_bat)" != "$here/work_dot_bat" ]; then
+  bin="work_dot_bat"
+else
+  os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+  case "$os" in mingw* | msys* | cygwin*) os=windows ;; esac
+  arch="$(uname -m)"
+  case "$arch" in x86_64 | amd64) arch=amd64 ;; aarch64 | arm64) arch=arm64 ;; esac
+  ext=""
+  [ "$os" = "windows" ] && ext=".exe"
+  bin="$here/../dist/work_dot_bat_${os}_${arch}${ext}"
+  if [ ! -x "$bin" ]; then
+    echo "work_dot_bat binary not found. Put it on PATH, set WORK_DOT_BAT_BIN, or run scripts/build-release.sh." >&2
+    exit 1
+  fi
+fi
+exec "$bin" "$@"

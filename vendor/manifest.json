@@ -1,0 +1,84 @@
+{
+  "files": {
+    "scripts/work_dot_bat/check-audit.sh": {
+      "version": "2.0.0",
+      "date": "2026-10-03",
+      "sha256": "bdfeb0727d168d2194594a47b7afb39aca212afcac483b26d72dfdb5fd930b24"
+    },
+    "scripts/work_dot_bat/check-duplication.sh": {
+      "version": "2.0.0",
+      "date": "2026-10-03",
+      "sha256": "593a97b914e2e1a365c54c848387b9d2b1c808ab5956f940281dba3240c9c800"
+    },
+    "scripts/work_dot_bat/check-monolith.sh": {
+      "version": "2.0.0",
+      "date": "2026-10-03",
+      "sha256": "964494fbda93e3202619435c4a86c3949ddcab70cd04b6584d27e9b81732b019"
+    },
+    "scripts/work_dot_bat/check-skills.sh": {
+      "version": "2.0.0",
+      "date": "2026-10-03",
+      "sha256": "9476d4e938c7ed325a32b8077804187ecb9932ec4691b3822dbfe89bdcea8819"
+    },
+    "scripts/work_dot_bat/check-source-assertions.sh": {
+      "version": "1.1.0",
+      "date": "2026-10-03",
+      "sha256": "2b0e872ea62949fb085e0773d99a28e3bbbfb91d554f8e7a62b1b5e02dbd6ab0"
+    },
+    "scripts/work_dot_bat/check-structural-duplication.sh": {
+      "version": "1.1.0",
+      "date": "2026-10-03",
+      "sha256": "cffbdb8bd87c02184cdb27e34979a5efaa3d2d38ad1b2c03918bd9b8c14737d1"
+    },
+    "scripts/work_dot_bat/list-tasks.sh": {
+      "version": "2.0.0",
+      "date": "2026-10-03",
+      "sha256": "cd65ed9f32173871a0cf3a19b0ebfc736b44f9826615f1ea5917720f7a3eb160"
+    },
+    "scripts/work_dot_bat/plan-claim.sh": {
+      "version": "2.0.0",
+      "date": "2026-10-03",
+      "sha256": "2b0b083769e617ac92db07308de2caf7bd05ba9a698b5a9ca1b401842c1fd431"
+    },
+    "scripts/work_dot_bat/plan-status.sh": {
+      "version": "2.0.0",
+      "date": "2026-10-03",
+      "sha256": "52f5b464fc08bfe329985f4db1ed9559d19128a46b757c391058788903f93da7"
+    },
+    "scripts/work_dot_bat/run-checks.sh": {
+      "version": "2.0.0",
+      "date": "2026-10-03",
+      "sha256": "4720299a1a50f7408b14d55af3cec9c704e5019cb56f55655d1bf7d52859f38f"
+    },
+    "scripts/work_dot_bat/typescript/check-source-assertions.mjs": {
+      "version": "1.0.0",
+      "date": "2026-10-03",
+      "sha256": "ff75663457a8c6267658be124deb52f5e99a93b0ddcd23d2c3fd591665308c7f"
+    },
+    "scripts/work_dot_bat/typescript/check-structural-duplication.mjs": {
+      "version": "1.0.0",
+      "date": "2026-10-03",
+      "sha256": "b358ac9d92c06be2ab1205a110497f7bccbd73520984596ba03a8c370972d4d2"
+    },
+    "scripts/work_dot_bat/typescript/duplication-common.mjs": {
+      "version": "1.0.0",
+      "date": "2026-10-03",
+      "sha256": "a84ca3b6fd78a2cb90f1dd82caa2796b72cbc60da94f39894a2a62bb2d865456"
+    },
+    "scripts/work_dot_bat/typescript/report-structural-duplication.mjs": {
+      "version": "1.0.0",
+      "date": "2026-10-03",
+      "sha256": "5c0d9505d8ae92d568a073c06732b2e90ca5c9aee4b15fa24cd014c130525200"
+    },
+    "scripts/work_dot_bat/update-project-structure.sh": {
+      "version": "2.0.0",
+      "date": "2026-10-03",
+      "sha256": "321774493341145dd1e3711584fd286c38f1bcbed8a5996b7fa50b9d3740473a"
+    },
+    "scripts/work_dot_bat/worktree-info.sh": {
+      "version": "2.0.0",
+      "date": "2026-10-03",
+      "sha256": "c947f91b489a62cdb97938e897824fd29b3081224b094aac13f197a92da5c7e2"
+    }
+  }
+}
