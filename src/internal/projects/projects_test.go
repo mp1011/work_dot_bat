@@ -598,4 +598,15 @@ func TestHasConfigAndToConfigMap(t *testing.T) {
 	}
 }
 
+func TestToolRoot(t *testing.T) {
+	root := ToolRoot()
+	if root == "" || root == "." {
+		t.Errorf("ToolRoot() returned %q", root)
+	}
+	if filepath.Base(root) == "dist" {
+		t.Errorf("ToolRoot() must not be dist: %q", root)
+	}
+}
+
+
 

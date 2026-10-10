@@ -37,6 +37,9 @@ This is a practical map of the repository. Summaries are intentionally brief.
   - `work_dot_bat` - <!-- TODO: summarize -->
   - `work_dot_bat.bat` - <!-- TODO: summarize -->
   - `worktree-info.sh` - <!-- TODO: summarize -->
+  - `add-to-path.bat` - <!-- TODO: summarize -->
+  - `add-to-path.ps1` - <!-- TODO: summarize -->
+  - `add-to-path.sh` - <!-- TODO: summarize -->
 - `src\`
   - `cmd\`
     - `work_dot_bat\`

@@ -24,13 +24,6 @@ func BuildPreparePushPrompt(skipMechanical bool) string {
 		"this invocation. Skip those steps and go straight to steps 1, 2, 7, and 8."
 }
 
-func agentLabel(agent string) string {
-	if agent == "a" {
-		return "Google Antigravity"
-	}
-	return "Claude Code"
-}
-
 func (a App) isDirty() bool {
 	git := a.GitOut
 	if git == nil {
@@ -73,7 +66,7 @@ func (a App) pushWorkflow(ctx context.Context, agent string) (newAgent string, p
 		for _, f := range failures {
 			a.logf("   - %s", f)
 		}
-		a.logf("\nLaunching %s interactively to fix failing checks...", agentLabel(agent))
+		a.logf("\nLaunching %s interactively to fix failing checks...", a.settings().AgentLabel(agent))
 		prompt := fmt.Sprintf("The following automated check(s) failed during prepare-for-push: %s. Please fix the failing checks so that all automated tests pass.", strings.Join(failures, ", "))
 		cmd := agentcmd.BuildCommand(agent, agentcmd.CommandOptions{RepoRoot: a.Root, Prompt: prompt, Interactive: true}, a.settings())
 		a.runAgent()(ctx, cmd, a.Root)
@@ -97,7 +90,7 @@ func (a App) pushWorkflow(ctx context.Context, agent string) (newAgent string, p
 		return agent, false
 	}
 	for again := true; again; {
-		a.logf("\nMechanical checks passed. Running prepare-for-push via %s non-interactively...", agentLabel(agent))
+		a.logf("\nMechanical checks passed. Running prepare-for-push via %s non-interactively...", a.settings().AgentLabel(agent))
 		cmd := agentcmd.BuildCommand(agent, agentcmd.CommandOptions{RepoRoot: a.Root, Prompt: BuildPreparePushPrompt(true)}, a.settings())
 		a.runAgent()(ctx, cmd, a.Root)
 		if a.commitIfDirty("prepare-for-push: apply automated fixes") {

@@ -59,7 +59,7 @@ func Main(c Config) int {
 		},
 		Log: func(s string) { fmt.Fprintln(c.Out, s) },
 	}
-	agent, quit, ok := agentcmd.ChooseAgent("", io)
+	agent, quit, ok := agentcmd.ChooseAgent("", io, agentcmd.ProjectSettings(c.Root, c.Root).Defs)
 	if quit || !ok {
 		return 0
 	}
@@ -69,10 +69,7 @@ func Main(c Config) int {
 	if removed := env.PruneStaleClaims(c.Root, func(m string) { fmt.Fprintln(c.Out, m) }); len(removed) > 0 {
 		stamp(fmt.Sprintf("Pruned %d stale claim(s) at startup.", len(removed)))
 	}
-	label := "Claude"
-	if agent == "a" {
-		label = "Antigravity"
-	}
+	label := agentcmd.ProjectSettings(c.Root, c.Root).AgentLabel(agent)
 	stamp(fmt.Sprintf("Starting unattended daemon loop with agent: %s...", label))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

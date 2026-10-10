@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"work_dot_bat/src/internal/agentcmd"
 	"work_dot_bat/src/internal/agentsession"
 	"work_dot_bat/src/internal/planclaims"
 	"work_dot_bat/src/internal/repo"
@@ -226,7 +227,12 @@ func Reclassify(c Config, args []string) int {
 					exit = int(n)
 				}
 			}
-			return agentsession.ClassifySession(r.Str("agent"), r.Str("sessionId"), "", exit, dirs, at)
+			// Rows record their transcript reader; older ones only name a built-in agent.
+			reader := r.Str("reader")
+			if reader == "" {
+				reader = agentcmd.DefaultSettings().Agent(r.Str("agent")).Session.Reader
+			}
+			return agentsession.ClassifySession(reader, r.Str("sessionId"), "", exit, dirs, at)
 		})
 		what, relabel = "bounced off a usage limit", "rate-limited"
 	}

@@ -1,97 +1,29 @@
-// Package agentcmd resolves agent CLI settings (tool defaults, the optional agent_settings.json,
-// the project's `agents` block) and builds agent command lines and prompts. All pure except
-// the settings-file read and the one agent-choice prompt.
+// Package agentcmd resolves the agent definitions (the built-ins plus the project's
+// agent_cli.json) and builds agent command lines and prompts. All pure except the
+// definitions-file read and the one agent-choice prompt.
 package agentcmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"work_dot_bat/src/internal/menu"
-	"work_dot_bat/src/internal/projectconfig"
-	"work_dot_bat/src/internal/projects"
 	"work_dot_bat/src/internal/repo"
 )
 
-const SettingsEnv = "WORK_DOT_BAT_AGENT_SETTINGS"
-
-// AgentSettings is one agent's settings; keys are cmd/model/permissionMode/effort, but
-// overrides may add others, as in the Node object-assign merge.
-type AgentSettings map[string]any
-
+// Settings is the set of agents that can be launched.
 type Settings struct {
-	Claude, Agy AgentSettings
+	Defs []Definition // empty = the built-ins
 }
 
-func (a AgentSettings) str(key string) string {
-	switch v := a[key].(type) {
-	case nil:
-		return ""
-	case string:
-		return v
-	default:
-		return fmt.Sprint(v)
-	}
-}
+func DefaultSettings() Settings { return Settings{Defs: DefaultDefinitions()} }
 
-func DefaultSettings() Settings {
-	return Settings{
-		Claude: AgentSettings{"cmd": "claude", "model": "sonnet", "permissionMode": "auto"},
-		Agy:    AgentSettings{"cmd": "agy", "model": "gemini-3.8-flash", "effort": "medium"},
-	}
-}
-
-func DefaultSettingsFile() string {
-	if v := os.Getenv(SettingsEnv); v != "" {
-		return v
-	}
-	return filepath.Join(projects.ToolRoot(), "agent_settings.json")
-}
-
-func merge(base Settings, override map[string]any) Settings {
-	out := Settings{Claude: AgentSettings{}, Agy: AgentSettings{}}
-	for k, v := range base.Claude {
-		out.Claude[k] = v
-	}
-	for k, v := range base.Agy {
-		out.Agy[k] = v
-	}
-	for name, dst := range map[string]AgentSettings{"claude": out.Claude, "agy": out.Agy} {
-		if o, ok := override[name].(map[string]any); ok {
-			for k, v := range o {
-				dst[k] = v
-			}
-		}
-	}
-	return out
-}
-
-// ResolveSettings layers defaults, the settings file, then projectAgents (the project config's
-// `agents` block, may be nil). An unreadable or invalid file is ignored, not a failure.
-func ResolveSettings(file string, projectAgents map[string]any) Settings {
-	s := DefaultSettings()
-	if b, err := os.ReadFile(file); err == nil {
-		var parsed any
-		if json.Unmarshal(b, &parsed) == nil {
-			if m, ok := parsed.(map[string]any); ok {
-				s = merge(s, m)
-			}
-		}
-	}
-	return merge(s, projectAgents)
-}
-
-// ProjectSettings applies the selected project's `agents` overrides. Never fails: a project
-// without a (valid) config gets the tool-level settings.
+// ProjectSettings is the built-ins with the project's agent_cli.json applied. Never fails: a
+// project without a (valid) file gets the built-ins.
 func ProjectSettings(treeRoot, projectRoot string) Settings {
-	var agents map[string]any
-	if cfg, err := projectconfig.ForProject(treeRoot, projectRoot); err == nil {
-		agents, _ = cfg["agents"].(map[string]any)
-	}
-	return ResolveSettings(DefaultSettingsFile(), agents)
+	return Settings{Defs: LoadDefinitions(projectRoot)}
 }
 
 // Command is a program and its argv.
@@ -100,42 +32,32 @@ type Command struct {
 	Args []string
 }
 
-func IsAgy(agent string) bool { return agent == "a" || agent == "agy" }
-
 type CommandOptions struct {
 	RepoRoot    string
 	Prompt      string
 	Interactive bool
-	SessionID   string // claude only
-	LogFile     string // agy only
+	SessionID   string // used when the agent defines sessionIdArgs
+	LogFile     string // used when the agent defines logFileArgs
 }
 
-// BuildCommand builds the command line. agent is the ledger vocabulary: "a"/"agy" for
-// Antigravity, anything else Claude. Interactive keeps the terminal; otherwise one-shot.
+// BuildCommand builds the command line for agent (an id, menu key, or alias; unknown names mean
+// the first Claude agent) from its definition. Interactive keeps the terminal; otherwise one-shot.
 func BuildCommand(agent string, o CommandOptions, s Settings) Command {
-	if IsAgy(agent) {
-		a := s.Agy
-		args := []string{"--add-dir", o.RepoRoot, "--model", a.str("model"), "--effort", a.str("effort")}
-		if o.LogFile != "" {
-			args = append(args, "--log-file", o.LogFile)
-		}
-		if o.Interactive {
-			args = append(args, "-i", o.Prompt)
-		} else {
-			args = append(args, "--print", o.Prompt)
-		}
-		return Command{a.str("cmd"), args}
-	}
-	c := s.Claude
-	args := []string{"--model", c.str("model"), "--permission-mode", c.str("permissionMode")}
+	d := s.Agent(agent)
+	vars := map[string]string{"prompt": o.Prompt, "repoRoot": o.RepoRoot, "sessionId": o.SessionID, "logFile": o.LogFile}
+	args := expand(d.Args, vars)
 	if o.SessionID != "" {
-		args = append(args, "--session-id", o.SessionID)
+		args = append(args, expand(d.SessionIDArgs, vars)...)
 	}
-	if !o.Interactive {
-		args = append(args, "--print")
+	if o.LogFile != "" {
+		args = append(args, expand(d.LogFileArgs, vars)...)
 	}
-	args = append(args, o.Prompt)
-	return Command{c.str("cmd"), args}
+	if o.Interactive {
+		args = append(args, expand(d.InteractiveArgs, vars)...)
+	} else {
+		args = append(args, expand(d.PrintArgs, vars)...)
+	}
+	return Command{d.Cmd, args}
 }
 
 type InvocationOptions struct {
@@ -221,29 +143,38 @@ func BuildGeneralAgentPrompt(planPath, specialInstructions, repoRoot string, war
 	return prompt
 }
 
-// ChooseAgent returns the already-selected agent, else prompts: "a" (Antigravity) or "c"
-// (Claude). quit is true on q; ok is false when input ended.
-func ChooseAgent(already string, io menu.IO) (agent string, quit, ok bool) {
+// ChooseAgent returns the already-selected agent, else prompts with one entry per definition
+// (by menu key, id, alias, or position). quit is true on q; ok is false when input ended.
+func ChooseAgent(already string, io menu.IO, defs []Definition) (agent string, quit, ok bool) {
 	if already != "" {
 		return already, false, true
 	}
+	if len(defs) == 0 {
+		defs = DefaultDefinitions()
+	}
 	io.Log("\nSelect Agent:")
-	io.Log("  (a) Google Antigravity (Gemini 3.8 Flash)")
-	io.Log("  (c) Claude Code (Sonnet)\n")
+	keys := make([]string, len(defs))
+	for i, d := range defs {
+		io.Log(fmt.Sprintf("  (%s) %s", d.Key, d.label()))
+		keys[i] = d.Key
+	}
+	io.Log("")
+	prompt := "Choose agent (" + strings.Join(keys, "/") + "): "
 	for {
-		line, more := io.Ask("Choose agent (a/c): ")
+		line, more := io.Ask(prompt)
 		if !more {
 			return "", false, false
 		}
-		switch strings.ToLower(strings.TrimSpace(line)) {
-		case "a", "antigravity", "1":
-			return "a", false, true
-		case "c", "claude", "2":
-			return "c", false, true
-		case "q", "quit":
+		in := strings.ToLower(strings.TrimSpace(line))
+		if in == "q" || in == "quit" {
 			io.Log("Exiting work script.")
 			return "", true, true
 		}
-		io.Log(`Invalid agent selection. Please enter "a" for Antigravity or "c" for Claude.`)
+		for i, d := range defs {
+			if d.matches(in) || in == fmt.Sprint(i+1) {
+				return d.Key, false, true
+			}
+		}
+		io.Log("Invalid agent selection. Please enter one of: " + strings.Join(keys, ", ") + ".")
 	}
 }

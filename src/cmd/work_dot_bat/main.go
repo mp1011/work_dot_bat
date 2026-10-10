@@ -141,6 +141,7 @@ func runMenu(list []projects.Project, e env) *projects.Project {
 		},
 		Projects:     list,
 		RegistryFile: e.registry,
+		ToolRoot:     projects.ToolRoot(),
 	})
 }
 

@@ -348,7 +348,7 @@ func (a App) promptRunTests() {
 }
 
 func (a App) chooseAgent(current *string) (ok bool) {
-	agent, quit, more := agentcmd.ChooseAgent(*current, a.io())
+	agent, quit, more := agentcmd.ChooseAgent(*current, a.io(), a.settings().Defs)
 	if quit || !more {
 		return false
 	}

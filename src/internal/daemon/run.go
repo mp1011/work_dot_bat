@@ -69,7 +69,7 @@ type StepMeta struct {
 type Runner struct {
 	Root        string
 	ProjectName string
-	Agent       string // "a" (Antigravity) or "c" (Claude)
+	Agent       string // an agentcmd definition key, id, or alias (built-ins: "a" Antigravity, "c" Claude)
 	DaemonDoc   string
 	MaxAttempts int // 0 = MaxAttempts
 	Heartbeat   time.Duration
@@ -165,12 +165,15 @@ func (r Runner) sleep(ctx context.Context, d time.Duration) error {
 	}
 }
 
-func (r Runner) agentLabel() string {
-	if r.Agent == "a" {
-		return "agy"
+func (r Runner) settings() agentcmd.Settings {
+	if r.Settings != nil {
+		return r.Settings()
 	}
-	return "claude"
+	return agentcmd.DefaultSettings()
 }
+
+// agentDef is the definition of the selected agent.
+func (r Runner) agentDef() agentcmd.Definition { return r.settings().Agent(r.Agent) }
 
 func (r Runner) readPlans(root string) []Plan {
 	if r.ReadPlans != nil {
@@ -415,9 +418,10 @@ func (r Runner) execStep(ctx context.Context, s step) (stepResult, error) {
 		logDir := repo.LogsDir(r.Root)
 		_ = os.MkdirAll(logDir, 0o755)
 		logFile := filepath.Join(logDir, name+".log")
-		label := r.agentLabel()
-		start := agentsession.Entry{"sessionName": name, "plan": s.planFull, "agent": label, "sessionId": sessionID}
-		if r.Agent == "a" {
+		def := r.agentDef()
+		label := def.ID
+		start := agentsession.Entry{"sessionName": name, "plan": s.planFull, "agent": label, "reader": def.Session.Reader, "sessionId": sessionID}
+		if def.Session.LogFile {
 			start["logFile"] = logFile
 		}
 		pid := os.Getpid()
@@ -479,10 +483,9 @@ func (r Runner) runStep(ctx context.Context, prompt string, meta StepMeta, s ste
 		}
 		return run
 	}
-	settings := agentcmd.DefaultSettings()
-	if r.Settings != nil {
-		settings = r.Settings()
-	}
+	settings := r.settings()
+	def := settings.Agent(r.Agent)
+	dirs := def.Dirs(r.Dirs)
 	cmd := agentcmd.BuildInvocation(r.Agent, s.tree, prompt, agentcmd.InvocationOptions{
 		SessionName: sessionName, SessionID: meta.SessionID, LogFile: meta.LogFile,
 	}, settings)
@@ -503,9 +506,9 @@ func (r Runner) runStep(ctx context.Context, prompt string, meta StepMeta, s ste
 	if err != nil {
 		r.log("[ERROR] %v", err)
 	}
-	out := ReadFinalMessage(label, meta.SessionID, meta.LogFile, r.Dirs, r.Root)
+	out := ReadFinalMessage(def.Session.Reader, meta.SessionID, meta.LogFile, dirs, r.Root)
 	run := StepRun{Output: out}
-	if v := agentsession.ClassifySession(label, meta.SessionID, meta.LogFile, code, r.Dirs, r.now()); v.Status == agentsession.RateLimited {
+	if v := agentsession.ClassifySession(def.Session.Reader, meta.SessionID, meta.LogFile, code, dirs, r.now()); v.Status == agentsession.RateLimited {
 		run.RateLimited, run.ResetAt, run.RawText = true, v.ResetAt, out
 	}
 	return run

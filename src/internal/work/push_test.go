@@ -49,7 +49,7 @@ func TestPushHappyPathRunsGateThenAgentThenPushes(t *testing.T) {
 	if got := gitCalls(f); len(got) != 1 || got[0] != "push" {
 		t.Errorf("git calls %v", got)
 	}
-	for _, want := range []string{"Mechanical checks passed. Running prepare-for-push via Claude Code non-interactively...", "Options after prepare command:", "Running git push..."} {
+	for _, want := range []string{"Mechanical checks passed. Running prepare-for-push via Claude Code (Sonnet) non-interactively...", "Options after prepare command:", "Running git push..."} {
 		if !strings.Contains(f.out.String(), want) {
 			t.Errorf("missing %q:\n%s", want, f.out.String())
 		}
@@ -77,7 +77,7 @@ func TestPushFailingChecksSendTheAgentInInteractivelyAndNeverPushOnTheirOwn(t *t
 			t.Error("pushed despite the cancel")
 		}
 	}
-	for _, want := range []string{"Mechanical checks failed:\n   - ESLint\n   - Unit Tests", "Launching Claude Code interactively to fix failing checks...",
+	for _, want := range []string{"Mechanical checks failed:\n   - ESLint\n   - Unit Tests", "Launching Claude Code (Sonnet) interactively to fix failing checks...",
 		"Re-running automated checks...", "Options after failing checks:", "Push cancelled."} {
 		if !strings.Contains(f.out.String(), want) {
 			t.Errorf("missing %q:\n%s", want, f.out.String())

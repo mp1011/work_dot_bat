@@ -1,0 +1,40 @@
+{
+  "agents": [
+    {
+      "id": "agy",
+      "key": "a",
+      "aliases": ["agy", "antigravity"],
+      "label": "Google Antigravity (Gemini 3.8 Flash)",
+      "cmd": "agy",
+      "args": ["--add-dir", "{repoRoot}", "--model", "gemini-3.8-flash", "--effort", "medium"],
+      "logFileArgs": ["--log-file", "{logFile}"],
+      "interactiveArgs": ["-i", "{prompt}"],
+      "printArgs": ["--print", "{prompt}"],
+      "session": { "reader": "agy", "logFile": true }
+    },
+    {
+      "id": "claude-sonnet",
+      "key": "c",
+      "aliases": ["claude-sonnet", "claude", "sonnet"],
+      "label": "Claude Code (Sonnet)",
+      "cmd": "claude",
+      "args": ["--model", "sonnet", "--permission-mode", "auto"],
+      "sessionIdArgs": ["--session-id", "{sessionId}"],
+      "interactiveArgs": ["{prompt}"],
+      "printArgs": ["--print", "{prompt}"],
+      "session": { "reader": "claude" }
+    },
+    {
+      "id": "claude-opus",
+      "key": "o",
+      "aliases": ["claude-opus", "opus"],
+      "label": "Claude Code (Opus)",
+      "cmd": "claude",
+      "args": ["--model", "opus", "--permission-mode", "auto"],
+      "sessionIdArgs": ["--session-id", "{sessionId}"],
+      "interactiveArgs": ["{prompt}"],
+      "printArgs": ["--print", "{prompt}"],
+      "session": { "reader": "claude" }
+    }
+  ]
+}

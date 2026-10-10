@@ -241,16 +241,32 @@ func (p Project) ToConfigMap() map[string]any {
 	return m
 }
 
-// ToolRoot is the first of the executable's directory and the working directory that holds a
-// projects.json or projects.example.json (so `go run` from the checkout works); failing
-// that, the executable's directory (or the working directory).
+// ToolRoot is the first of the executable's directory (or its parent when inside dist/.tools/bin)
+// and the working directory that holds .tools and projects.json or projects.example.json;
+// failing that, the executable's directory (or the working directory).
 func ToolRoot() string {
 	var dirs []string
 	if exe, err := os.Executable(); err == nil {
-		dirs = append(dirs, filepath.Dir(exe))
+		exeDir := filepath.Dir(exe)
+		parent := filepath.Dir(exeDir)
+		if _, err := os.Stat(filepath.Join(parent, ".tools")); err == nil {
+			dirs = append(dirs, parent)
+		}
+		if filepath.Base(exeDir) != "dist" {
+			dirs = append(dirs, exeDir)
+		}
 	}
 	if wd, err := os.Getwd(); err == nil {
 		dirs = append(dirs, wd)
+	}
+	for _, d := range dirs {
+		if _, err := os.Stat(filepath.Join(d, ".tools")); err == nil {
+			for _, f := range []string{"projects.json", "projects.example.json"} {
+				if _, err := os.Stat(filepath.Join(d, f)); err == nil {
+					return d
+				}
+			}
+		}
 	}
 	for _, d := range dirs {
 		for _, f := range []string{"projects.json", "projects.example.json"} {

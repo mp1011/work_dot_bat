@@ -95,12 +95,11 @@ func (a App) session(ctx context.Context, agent, planPath string, attempt *int, 
 	logFile := filepath.Join(logDir, name+".log")
 	ledger := repo.LedgerPath(a.Root)
 
-	agentName := "claude"
-	if agentcmd.IsAgy(agent) {
-		agentName = "agy"
-	}
-	start := agentsession.Entry{"sessionName": name, "plan": planPath, "agent": agentName, "sessionId": sessionID}
-	if agent == "a" {
+	settings := a.settings()
+	def := settings.Agent(agent)
+	agentName := def.ID
+	start := agentsession.Entry{"sessionName": name, "plan": planPath, "agent": agentName, "reader": def.Session.Reader, "sessionId": sessionID}
+	if def.Session.LogFile {
 		start["logFile"] = logFile
 	}
 	if _, err := agentsession.RecordStart(ledger, start, a.ClaimEnv.PID, a.now()); err != nil {
@@ -122,7 +121,7 @@ func (a App) session(ctx context.Context, agent, planPath string, attempt *int, 
 
 	cmd := agentcmd.BuildCommand(agent, agentcmd.CommandOptions{
 		RepoRoot: a.Root, Prompt: prompt, Interactive: interactive, SessionID: sessionID, LogFile: logFile,
-	}, a.settings())
+	}, settings)
 	code, err := a.runAgent()(ctx, cmd, a.Root)
 	if err != nil {
 		exitCode = 1
@@ -130,7 +129,7 @@ func (a App) session(ctx context.Context, agent, planPath string, attempt *int, 
 	}
 	// The claude CLI exits 0 on a usage limit; the session transcript says which it was.
 	exitCode = code
-	verdict = agentsession.ClassifySession(agentName, sessionID, logFile, exitCode, a.Dirs, a.now())
+	verdict = agentsession.ClassifySession(def.Session.Reader, sessionID, logFile, exitCode, def.Dirs(a.Dirs), a.now())
 	status = verdict.Status
 	return verdict, nil
 }
@@ -140,13 +139,13 @@ func (a App) session(ctx context.Context, agent, planPath string, attempt *int, 
 func (a App) LaunchInteractiveAgent(ctx context.Context, agent, planPath, promptText string) error {
 	verdict, err := a.session(ctx, agent, planPath, nil, true, promptText, func(name, sessionID, logFile string) {
 		a.logf("\nSession Name: %s", name)
-		if agent == "a" {
+		def := a.settings().Agent(agent)
+		if def.Session.LogFile {
 			a.logf("Log File:     %s", logFile)
-			a.logf("\nLaunching Google Antigravity interactively with prompt:\n\"%s\"\n", promptText)
 		} else {
 			a.logf("Session ID:   %s", sessionID)
-			a.logf("\nLaunching Claude Code interactively with prompt:\n\"%s\"\n", promptText)
 		}
+		a.logf("\nLaunching %s interactively with prompt:\n\"%s\"\n", def.Label, promptText)
 	})
 	if err != nil {
 		return err

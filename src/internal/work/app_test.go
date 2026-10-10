@@ -146,7 +146,7 @@ func TestWorkOnLeafHoldsClaimAndReleasesAfterFailingAgent(t *testing.T) {
 	if len(ledger) != 1 || ledger[0]["status"] != "failed" || ledger[0]["exitCode"] != float64(1) || ledger[0]["plan"] != "agent_docs/plans/x.md" {
 		t.Errorf("ledger %v", ledger)
 	}
-	for _, want := range []string{"Session Name: ", "Launching Claude Code interactively with prompt:", "[Agent session completed]", "Do you want to run automated tests? (y/n): "} {
+	for _, want := range []string{"Session Name: ", "Launching Claude Code (Sonnet) interactively with prompt:", "[Agent session completed]", "Do you want to run automated tests? (y/n): "} {
 		if !strings.Contains(f.out.String(), want) {
 			t.Errorf("output missing %q:\n%s", want, f.out.String())
 		}
