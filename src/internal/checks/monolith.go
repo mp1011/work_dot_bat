@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"work_dot_bat/internal/planstatus"
+	"work_dot_bat/src/internal/planstatus"
 )
 
 // DefaultMaxLines is the monolith threshold.

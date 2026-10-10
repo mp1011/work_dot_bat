@@ -9,7 +9,7 @@ import (
 	"strings"
 	"syscall"
 
-	"work_dot_bat/internal/agentcmd"
+	"work_dot_bat/src/internal/agentcmd"
 )
 
 // BuildPreparePushPrompt is the agent's prepare-for-push invocation. With skipMechanical it tells

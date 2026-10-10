@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"work_dot_bat/internal/planstatus"
-	"work_dot_bat/internal/projectconfig"
-	"work_dot_bat/internal/repo"
+	"work_dot_bat/src/internal/planstatus"
+	"work_dot_bat/src/internal/projectconfig"
+	"work_dot_bat/src/internal/repo"
 )
 
 // Provisioning is the slice of a project's config a worktree needs.

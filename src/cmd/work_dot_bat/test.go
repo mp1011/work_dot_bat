@@ -6,10 +6,10 @@ import (
 	"io"
 	"os"
 
-	"work_dot_bat/internal/projects"
-	"work_dot_bat/internal/repo"
-	"work_dot_bat/internal/testrunner"
-	"work_dot_bat/internal/tools"
+	"work_dot_bat/src/internal/projects"
+	"work_dot_bat/src/internal/repo"
+	"work_dot_bat/src/internal/testrunner"
+	"work_dot_bat/src/internal/tools"
 )
 
 func runTest(args []string) int {

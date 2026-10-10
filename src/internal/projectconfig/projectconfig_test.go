@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"work_dot_bat/internal/projects"
+	"work_dot_bat/src/internal/projects"
 )
 
 func parse(t *testing.T, s string) any {

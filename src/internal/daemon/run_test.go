@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 	"time"
-	"work_dot_bat/internal/proc"
+	"work_dot_bat/src/internal/proc"
 
-	"work_dot_bat/internal/agentsession"
-	"work_dot_bat/internal/planclaims"
-	"work_dot_bat/internal/planstatus"
-	"work_dot_bat/internal/repo"
+	"work_dot_bat/src/internal/agentsession"
+	"work_dot_bat/src/internal/planclaims"
+	"work_dot_bat/src/internal/planstatus"
+	"work_dot_bat/src/internal/repo"
 )
 
 func gitIn(t *testing.T, dir string, args ...string) string {

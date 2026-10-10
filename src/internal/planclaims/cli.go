@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"work_dot_bat/internal/planstatus"
+	"work_dot_bat/src/internal/planstatus"
 )
 
 // CLI is the agent-facing plan-claim command: argv parsing and output formatting only.

@@ -12,8 +12,8 @@ import (
 	"sort"
 	"strings"
 
-	"work_dot_bat/internal/managed"
-	"work_dot_bat/internal/syncer"
+	"work_dot_bat/src/internal/managed"
+	"work_dot_bat/src/internal/syncer"
 )
 
 // Plan files are history; the managed folder holds copies that must stay byte-exact.

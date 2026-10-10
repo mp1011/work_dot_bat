@@ -21,7 +21,7 @@ func TestInstallWritesWrappersForEachTool(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", tool, err)
 		}
-		want := `cd "C:/tools/work_dot_bat" && exec "C:/tools/work_dot_bat/bin/` + tool + `" project=my-proj "$@"`
+		want := `cd "C:/tools/work_dot_bat" && exec "C:/tools/work_dot_bat/.tools/` + tool + `" project=my-proj "$@"`
 		if !strings.HasPrefix(string(sh), "#!/usr/bin/env bash\n") || !strings.Contains(string(sh), want) {
 			t.Errorf("%s script:\n%s\nwant line %s", tool, sh, want)
 		}
@@ -29,7 +29,7 @@ func TestInstallWritesWrappersForEachTool(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s.bat: %v", tool, err)
 		}
-		wantBat := `cd /d "C:\tools\work_dot_bat" && call "C:\tools\work_dot_bat\bin\` + tool + `.bat" project=my-proj %*`
+		wantBat := `cd /d "C:\tools\work_dot_bat" && call "C:\tools\work_dot_bat\.tools\` + tool + `.bat" project=my-proj %*`
 		if !strings.Contains(string(bat), wantBat) {
 			t.Errorf("%s.bat:\n%s\nwant line %s", tool, bat, wantBat)
 		}
@@ -54,7 +54,7 @@ func TestInstallRewritesStaleWrapper(t *testing.T) {
 	Install(repo, "/old", "p")
 	Install(repo, "/new", "p")
 	sh, _ := os.ReadFile(filepath.Join(repo, ".tools", "work"))
-	if strings.Contains(string(sh), "/old") || !strings.Contains(string(sh), "/new/bin/work") {
+	if strings.Contains(string(sh), "/old") || !strings.Contains(string(sh), "/new/.tools/work") {
 		t.Errorf("stale wrapper:\n%s", sh)
 	}
 }

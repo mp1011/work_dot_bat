@@ -7,7 +7,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"work_dot_bat/internal/managed"
+	"work_dot_bat/src/internal/managed"
 )
 
 const (

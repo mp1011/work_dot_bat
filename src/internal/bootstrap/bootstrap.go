@@ -14,13 +14,13 @@ import (
 	"sort"
 	"strings"
 
-	"work_dot_bat/internal/managed"
-	"work_dot_bat/internal/projectconfig"
-	"work_dot_bat/internal/projects"
-	"work_dot_bat/internal/repo"
-	"work_dot_bat/internal/safetyhook"
-	"work_dot_bat/internal/statemigrate"
-	"work_dot_bat/internal/syncer"
+	"work_dot_bat/src/internal/managed"
+	"work_dot_bat/src/internal/projectconfig"
+	"work_dot_bat/src/internal/projects"
+	"work_dot_bat/src/internal/repo"
+	"work_dot_bat/src/internal/safetyhook"
+	"work_dot_bat/src/internal/statemigrate"
+	"work_dot_bat/src/internal/syncer"
 )
 
 const (

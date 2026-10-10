@@ -8,8 +8,8 @@ import (
 	"regexp"
 	"strings"
 
-	"work_dot_bat/internal/agentsession"
-	"work_dot_bat/internal/repo"
+	"work_dot_bat/src/internal/agentsession"
+	"work_dot_bat/src/internal/repo"
 )
 
 // Outcome is what an agent in daemon mode reports on its last marker line.

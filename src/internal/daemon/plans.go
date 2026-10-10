@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"strings"
 
-	"work_dot_bat/internal/planclaims"
-	"work_dot_bat/internal/planstatus"
+	"work_dot_bat/src/internal/planclaims"
+	"work_dot_bat/src/internal/planstatus"
 )
 
 // Plan is a plan as the daemon sees it: where its authoritative copy lives and, for a blocked

@@ -12,14 +12,14 @@ import (
 	"path/filepath"
 	"strings"
 
-	"work_dot_bat/internal/menu"
-	"work_dot_bat/internal/planclaims"
-	"work_dot_bat/internal/planstatus"
-	"work_dot_bat/internal/projects"
-	"work_dot_bat/internal/repo"
-	"work_dot_bat/internal/tools"
-	"work_dot_bat/internal/worktree"
-	"work_dot_bat/internal/wrappers"
+	"work_dot_bat/src/internal/menu"
+	"work_dot_bat/src/internal/planclaims"
+	"work_dot_bat/src/internal/planstatus"
+	"work_dot_bat/src/internal/projects"
+	"work_dot_bat/src/internal/repo"
+	"work_dot_bat/src/internal/tools"
+	"work_dot_bat/src/internal/worktree"
+	"work_dot_bat/src/internal/wrappers"
 )
 
 // Version is stamped at release build time: -ldflags "-X main.Version=1.2.3".

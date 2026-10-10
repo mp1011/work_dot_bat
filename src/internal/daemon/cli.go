@@ -9,13 +9,13 @@ import (
 	"os/signal"
 	"syscall"
 
-	"work_dot_bat/internal/agentcmd"
-	"work_dot_bat/internal/agentsession"
-	"work_dot_bat/internal/menu"
-	"work_dot_bat/internal/planclaims"
-	"work_dot_bat/internal/projectconfig"
-	"work_dot_bat/internal/repo"
-	"work_dot_bat/internal/worktree"
+	"work_dot_bat/src/internal/agentcmd"
+	"work_dot_bat/src/internal/agentsession"
+	"work_dot_bat/src/internal/menu"
+	"work_dot_bat/src/internal/planclaims"
+	"work_dot_bat/src/internal/projectconfig"
+	"work_dot_bat/src/internal/repo"
+	"work_dot_bat/src/internal/worktree"
 )
 
 // Config is what the process-level entry points need from the rest of the program.

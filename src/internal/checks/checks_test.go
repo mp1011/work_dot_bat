@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"work_dot_bat/internal/projects"
+	"work_dot_bat/src/internal/projects"
 )
 
 var fixedNow = time.Date(2026, 10, 3, 12, 0, 0, 0, time.UTC)

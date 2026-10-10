@@ -445,7 +445,10 @@ func TestProjectsExampleJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	repoRoot := filepath.Clean(filepath.Join(wd, "..", ".."))
+	repoRoot := filepath.Clean(filepath.Join(wd, "..", "..", ".."))
+	if _, err := os.Stat(filepath.Join(repoRoot, "go.mod")); err != nil {
+		repoRoot = filepath.Clean(filepath.Join(wd, "..", ".."))
+	}
 	examplePath := filepath.Join(repoRoot, "projects.example.json")
 	projects, errs, err := LoadRegistry(examplePath)
 	if err != nil {

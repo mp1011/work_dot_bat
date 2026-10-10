@@ -4,9 +4,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"work_dot_bat/internal/repo"
-	"work_dot_bat/internal/sessiontools"
-	"work_dot_bat/internal/tools"
+	"work_dot_bat/src/internal/repo"
+	"work_dot_bat/src/internal/sessiontools"
+	"work_dot_bat/src/internal/tools"
 )
 
 func sessionConfig() sessiontools.Config {

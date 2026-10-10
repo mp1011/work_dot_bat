@@ -14,7 +14,7 @@ set "ARCH=amd64"
 if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "ARCH=arm64"
 set "BIN=%~dp0..\dist\work_dot_bat_windows_%ARCH%.exe"
 if not exist "%BIN%" (
-  echo work_dot_bat binary not found. Put work_dot_bat.exe on PATH, set WORK_DOT_BAT_BIN, or run scripts\build-release.sh. 1>&2
+  echo work_dot_bat binary not found. Put work_dot_bat.exe on PATH, set WORK_DOT_BAT_BIN, or run .tools\build-release.sh. 1>&2
   exit /b 1
 )
 :run

@@ -13,12 +13,12 @@ import (
 	"strings"
 	"time"
 
-	"work_dot_bat/internal/bootstrap"
-	"work_dot_bat/internal/managed"
-	"work_dot_bat/internal/pathrewrite"
-	"work_dot_bat/internal/safetyhook"
-	"work_dot_bat/internal/statemigrate"
-	"work_dot_bat/internal/syncer"
+	"work_dot_bat/src/internal/bootstrap"
+	"work_dot_bat/src/internal/managed"
+	"work_dot_bat/src/internal/pathrewrite"
+	"work_dot_bat/src/internal/safetyhook"
+	"work_dot_bat/src/internal/statemigrate"
+	"work_dot_bat/src/internal/syncer"
 )
 
 // Config is the process-level context for the tools.
@@ -201,10 +201,19 @@ func report(out io.Writer, d managed.Drift) {
 	}
 }
 
+func vendorDirOf(dir string) (string, string) {
+	candidate := filepath.Join(dir, "src", "vendor")
+	if st, err := os.Stat(candidate); err == nil && st.IsDir() {
+		return candidate, "src/vendor"
+	}
+	return filepath.Join(dir, "vendor"), "vendor"
+}
+
 // VendorCheck fails if any vendored file changed without a recorded version bump. dir is the
-// tool checkout holding vendor/.
+// tool checkout holding src/vendor/ or vendor/.
 func VendorCheck(dir string, out io.Writer) int {
-	fsys := os.DirFS(filepath.Join(dir, "vendor"))
+	vDir, label := vendorDirOf(dir)
+	fsys := os.DirFS(vDir)
 	m, err := managed.ReadManifest(fsys)
 	if err != nil {
 		fmt.Fprintln(out, err)
@@ -216,10 +225,10 @@ func VendorCheck(dir string, out io.Writer) int {
 		return 1
 	}
 	if d.Clean() {
-		fmt.Fprintln(out, "vendor/manifest.json matches the vendored files.")
+		fmt.Fprintf(out, "%s/manifest.json matches the vendored files.\n", label)
 		return 0
 	}
-	fmt.Fprintln(out, "Vendored files differ from vendor/manifest.json — run `work_dot_bat vendor-bump`:")
+	fmt.Fprintf(out, "Vendored files differ from %s/manifest.json — run `work_dot_bat vendor-bump`:\n", label)
 	report(out, d)
 	return 1
 }
@@ -227,7 +236,7 @@ func VendorCheck(dir string, out io.Writer) int {
 // VendorBump records vendored-file changes in vendor/manifest.json: new files start at 1.0.0,
 // changed ones get their patch (or --minor/--major) bumped.
 func VendorBump(dir string, args []string, now time.Time, out io.Writer) int {
-	vendorDir := filepath.Join(dir, "vendor")
+	vendorDir, _ := vendorDirOf(dir)
 	fsys := os.DirFS(vendorDir)
 	m, err := managed.ReadManifest(fsys)
 	if err != nil {

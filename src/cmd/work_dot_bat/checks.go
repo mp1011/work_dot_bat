@@ -5,9 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"work_dot_bat/internal/checks"
-	"work_dot_bat/internal/projects"
-	"work_dot_bat/internal/repo"
+	"work_dot_bat/src/internal/checks"
+	"work_dot_bat/src/internal/projects"
+	"work_dot_bat/src/internal/repo"
 )
 
 func checksEnv() checks.Env {

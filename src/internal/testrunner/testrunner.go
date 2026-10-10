@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"work_dot_bat/internal/projects"
+	"work_dot_bat/src/internal/projects"
 )
 
 const (

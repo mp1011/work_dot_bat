@@ -3,7 +3,7 @@
 // workflows (commit, cancel, mark done, set auto).
 package work
 
-import "work_dot_bat/internal/planstatus"
+import "work_dot_bat/src/internal/planstatus"
 
 // Option is one entry of the action menu.
 type Option struct{ Key, Label string }

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"syscall"
 
-	"work_dot_bat/internal/planclaims"
+	"work_dot_bat/src/internal/planclaims"
 )
 
 // New wires an App to the real process: stdin for prompts, out for output, real git, claims and

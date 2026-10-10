@@ -4,10 +4,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"work_dot_bat/internal/daemon"
-	"work_dot_bat/internal/repo"
-	"work_dot_bat/internal/tools"
-	"work_dot_bat/internal/worktree"
+	"work_dot_bat/src/internal/daemon"
+	"work_dot_bat/src/internal/repo"
+	"work_dot_bat/src/internal/tools"
+	"work_dot_bat/src/internal/worktree"
 )
 
 func daemonConfig() daemon.Config {

@@ -11,7 +11,7 @@ import (
 	"regexp"
 	"strings"
 
-	"work_dot_bat/internal/planstatus"
+	"work_dot_bat/src/internal/planstatus"
 )
 
 var trailingSlashes = regexp.MustCompile(`/+$`)

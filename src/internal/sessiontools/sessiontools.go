@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"work_dot_bat/internal/agentsession"
-	"work_dot_bat/internal/planclaims"
-	"work_dot_bat/internal/repo"
+	"work_dot_bat/src/internal/agentsession"
+	"work_dot_bat/src/internal/planclaims"
+	"work_dot_bat/src/internal/repo"
 )
 
 // Config is the process-level context for both tools.

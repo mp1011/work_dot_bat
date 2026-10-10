@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"work_dot_bat/internal/planstatus"
-	"work_dot_bat/internal/projectconfig"
-	"work_dot_bat/internal/projects"
+	"work_dot_bat/src/internal/planstatus"
+	"work_dot_bat/src/internal/projectconfig"
+	"work_dot_bat/src/internal/projects"
 )
 
 func git(t *testing.T, dir string, args ...string) string {

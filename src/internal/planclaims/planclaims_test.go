@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"work_dot_bat/internal/repo"
+	"work_dot_bat/src/internal/repo"
 )
 
 var t0 = time.Date(2026, 10, 3, 12, 0, 0, 0, time.UTC)

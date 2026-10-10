@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"work_dot_bat/internal/repo"
+	"work_dot_bat/src/internal/repo"
 )
 
 const (

@@ -21,7 +21,7 @@ import (
 	"sort"
 	"strings"
 
-	"work_dot_bat/internal/managed"
+	"work_dot_bat/src/internal/managed"
 )
 
 // TargetDir is where vendored files live inside a target repo.

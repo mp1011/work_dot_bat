@@ -5,5 +5,5 @@
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
-go build -o dist/work_dot_bat_windows_amd64.exe ./cmd/work_dot_bat
+go build -o dist/work_dot_bat_windows_amd64.exe ./src/cmd/work_dot_bat
 echo "built dist/work_dot_bat_windows_amd64.exe"

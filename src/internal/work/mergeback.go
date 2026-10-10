@@ -5,9 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"work_dot_bat/internal/planstatus"
-	"work_dot_bat/internal/taskmenu"
-	"work_dot_bat/internal/worktree"
+	"work_dot_bat/src/internal/planstatus"
+	"work_dot_bat/src/internal/taskmenu"
+	"work_dot_bat/src/internal/worktree"
 )
 
 func (a App) runner() worktree.Runner {

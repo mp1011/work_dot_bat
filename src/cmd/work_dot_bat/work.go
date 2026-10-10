@@ -4,9 +4,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"work_dot_bat/internal/repo"
-	"work_dot_bat/internal/tools"
-	"work_dot_bat/internal/work"
+	"work_dot_bat/src/internal/repo"
+	"work_dot_bat/src/internal/tools"
+	"work_dot_bat/src/internal/work"
 )
 
 // runWork is the interactive launcher, run in the activated project.

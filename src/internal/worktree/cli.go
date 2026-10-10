@@ -7,9 +7,9 @@ import (
 	"os"
 	"strings"
 
-	"work_dot_bat/internal/menu"
-	"work_dot_bat/internal/planstatus"
-	"work_dot_bat/internal/taskmenu"
+	"work_dot_bat/src/internal/menu"
+	"work_dot_bat/src/internal/planstatus"
+	"work_dot_bat/src/internal/taskmenu"
 )
 
 // App is the create_worktree tool. Two modes: name the branch yourself (no bootstrap), or

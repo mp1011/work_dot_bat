@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"work_dot_bat/internal/planstatus"
+	"work_dot_bat/src/internal/planstatus"
 )
 
 func TestNextLoopDecision(t *testing.T) {

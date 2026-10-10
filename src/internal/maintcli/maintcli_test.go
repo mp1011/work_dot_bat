@@ -12,15 +12,15 @@ import (
 	"time"
 
 	wdb "work_dot_bat"
-	"work_dot_bat/internal/maintcli"
-	"work_dot_bat/internal/managed"
-	"work_dot_bat/internal/projects"
-	"work_dot_bat/internal/safetyhook"
+	"work_dot_bat/src/internal/maintcli"
+	"work_dot_bat/src/internal/managed"
+	"work_dot_bat/src/internal/projects"
+	"work_dot_bat/src/internal/safetyhook"
 )
 
 func assets(t *testing.T) (vendor, templates fs.FS) {
 	t.Helper()
-	v, err := fs.Sub(wdb.Vendor, "vendor")
+	v, err := fs.Sub(wdb.Vendor, "src/vendor")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"work_dot_bat/internal/planstatus"
-	"work_dot_bat/internal/taskmenu"
+	"work_dot_bat/src/internal/planstatus"
+	"work_dot_bat/src/internal/taskmenu"
 )
 
 func gitIn(t *testing.T, dir string, args ...string) string {

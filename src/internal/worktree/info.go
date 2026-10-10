@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"work_dot_bat/internal/planstatus"
+	"work_dot_bat/src/internal/planstatus"
 )
 
 type Info struct {

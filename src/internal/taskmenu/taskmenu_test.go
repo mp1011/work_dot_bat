@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"work_dot_bat/internal/menu"
-	"work_dot_bat/internal/planstatus"
+	"work_dot_bat/src/internal/menu"
+	"work_dot_bat/src/internal/planstatus"
 )
 
 func plan(t *testing.T, root, rel, content string) {

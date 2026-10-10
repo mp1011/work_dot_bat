@@ -7,15 +7,15 @@ Agents: read the **Critical Rules** and the **Session Startup Protocol** below, 
 > **CRITICAL RULES FOR ALL AI AGENTS**:
 > 1. **Never start long-running servers.** Starting and managing the dev server ((none configured)) is **always the user's responsibility**.
 > 2. **Never commit or push.** Git commits and pushes are made by the user, by hand.
-> 3. **Keep plan status in sync.** Every plan file under `agent_docs/plans/` carries its status in a YAML frontmatter block (`---\nstatus: <value>\n---`) at the top. Always change it through `scripts/work_dot_bat/plan-status.sh` — never hand-edit a plan file's frontmatter block.
->    - Starting work on a plan: `scripts/work_dot_bat/plan-status.sh set <path> "In Progress"`.
->    - You believe the work is complete: `scripts/work_dot_bat/plan-status.sh set <path> "Ready for Review"` (never `"Done"` — only the user confirms that).
->    - The user agrees it is complete: `scripts/work_dot_bat/plan-status.sh set <path> "Done"`.
->    - Intentionally not finished, declined or abandoned: flag it to the user, who runs `scripts/work_dot_bat/plan-status.sh set <path> "Cancelled" --human`.
->    - Needs a human decision to proceed: `scripts/work_dot_bat/plan-status.sh set <path> "Blocked - User Input Required"`.
->    - Creating a new plan file under `agent_docs/plans/`: `scripts/work_dot_bat/plan-status.sh add <path>` (lands as `"Not Started"`). Start from `agent_docs/plan_template.md`.
->    - Untracked recommendations found in plan files: write each to `agent_docs/plans/agent_suggestions/<name>.md` and register it with `scripts/work_dot_bat/plan-status.sh add <path>`.
-> 4. **Check for concurrent work before starting a plan**: `scripts/work_dot_bat/plan-claim.sh check <plan>` and `scripts/work_dot_bat/plan-status.sh list-tasks`.
+> 3. **Keep plan status in sync.** Every plan file under `agent_docs/plans/` carries its status in a YAML frontmatter block (`---\nstatus: <value>\n---`) at the top. Always change it through `.tools/plan-status.sh` — never hand-edit a plan file's frontmatter block.
+>    - Starting work on a plan: `.tools/plan-status.sh set <path> "In Progress"`.
+>    - You believe the work is complete: `.tools/plan-status.sh set <path> "Ready for Review"` (never `"Done"` — only the user confirms that).
+>    - The user agrees it is complete: `.tools/plan-status.sh set <path> "Done"`.
+>    - Intentionally not finished, declined or abandoned: flag it to the user, who runs `.tools/plan-status.sh set <path> "Cancelled" --human`.
+>    - Needs a human decision to proceed: `.tools/plan-status.sh set <path> "Blocked - User Input Required"`.
+>    - Creating a new plan file under `agent_docs/plans/`: `.tools/plan-status.sh add <path>` (lands as `"Not Started"`). Start from `agent_docs/plan_template.md`.
+>    - Untracked recommendations found in plan files: write each to `agent_docs/plans/agent_suggestions/<name>.md` and register it with `.tools/plan-status.sh add <path>`.
+> 4. **Check for concurrent work before starting a plan**: `.tools/plan-claim.sh check <plan>` and `.tools/plan-status.sh list-tasks`.
 
 ## Session Startup Protocol (Agents)
 
@@ -27,7 +27,14 @@ Start every session by reading **only**:
 
 ### Top-Level Repository Layout
 
-<!-- TODO(agent): one bullet per top-level folder that matters, e.g. `src/` — what lives there. Keep it to ~6 lines; the full file listing is in agent_docs/02_project_structure.md. -->
+- `.agents/` — Agent skills
+- `.claude/` — Claude configuration and skills
+- `.tools/` — Runnable scripts and tools (both user and agent commands)
+- `.work_dot_bat/` — Internal runtime state (claims, logs, session ledger)
+- `agent_docs/` — Agent documentation and plans
+- `dist/` — Compiled release binaries (gitignored)
+- `src/` — Go codebase (`src/cmd/`, `src/internal/`, `src/vendor/`)
+- `templates/` — Repository template files
 
 ### Task Quick Reference
 
@@ -51,8 +58,8 @@ Start every session by reading **only**:
 - Build and static checks: `go build ./...`, `go vet ./...`
 - Light tests: `go test ./...`
 - Heavy tests: (none configured)
-- Release builds: `scripts/build-release.sh` (all six OS/arch targets into `dist/`), then `scripts/smoke.sh dist/<binary>`
-- Mechanical gate (what the pre-push hook and CI run): `scripts/work_dot_bat/run-checks.sh`
+- Release builds: `.tools/build-release.sh` (all six OS/arch targets into `dist/`), then `.tools/smoke.sh dist/<binary>`
+- Mechanical gate (what the pre-push hook and CI run): `.tools/run-checks.sh`
 
 ## Project Configuration
 

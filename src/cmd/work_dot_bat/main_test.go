@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"work_dot_bat/internal/projects"
-	"work_dot_bat/internal/tools"
+	"work_dot_bat/src/internal/projects"
+	"work_dot_bat/src/internal/tools"
 )
 
 func setup(t *testing.T, list []projects.Project) (registry string, repoDir string) {

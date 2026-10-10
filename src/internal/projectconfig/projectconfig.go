@@ -11,7 +11,7 @@ import (
 	"slices"
 	"strings"
 
-	"work_dot_bat/internal/projects"
+	"work_dot_bat/src/internal/projects"
 )
 
 const ConfigFile = "work_dot_bat.config.json"

@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"work_dot_bat/internal/planstatus"
+	"work_dot_bat/src/internal/planstatus"
 )
 
 // IsStatusOnlyPath reports whether a path only ever reflects plan-status bookkeeping (plan

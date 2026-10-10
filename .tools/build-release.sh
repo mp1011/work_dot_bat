@@ -19,6 +19,6 @@ for target in $targets; do
   file="$out/work_dot_bat_${os}_${arch}${ext}"
   echo "building $file ($version)"
   CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" \
-    go build -trimpath -ldflags "-s -w -X main.Version=$version" -o "$file" ./cmd/work_dot_bat
+    go build -trimpath -ldflags "-s -w -X main.Version=$version" -o "$file" ./src/cmd/work_dot_bat
 done
 echo "built $(echo $targets | wc -w) binaries in $out/"

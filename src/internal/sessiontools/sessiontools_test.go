@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"work_dot_bat/internal/agentsession"
+	"work_dot_bat/src/internal/agentsession"
 )
 
 type rig struct {

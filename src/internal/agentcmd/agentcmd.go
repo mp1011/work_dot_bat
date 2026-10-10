@@ -10,10 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"work_dot_bat/internal/menu"
-	"work_dot_bat/internal/projectconfig"
-	"work_dot_bat/internal/projects"
-	"work_dot_bat/internal/repo"
+	"work_dot_bat/src/internal/menu"
+	"work_dot_bat/src/internal/projectconfig"
+	"work_dot_bat/src/internal/projects"
+	"work_dot_bat/src/internal/repo"
 )
 
 const SettingsEnv = "WORK_DOT_BAT_AGENT_SETTINGS"

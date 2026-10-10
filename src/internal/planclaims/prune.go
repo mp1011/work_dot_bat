@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"work_dot_bat/internal/repo"
+	"work_dot_bat/src/internal/repo"
 )
 
 type PruneResult struct {

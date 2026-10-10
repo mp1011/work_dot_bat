@@ -7,14 +7,14 @@ import (
 	"testing"
 
 	wdb "work_dot_bat"
-	"work_dot_bat/internal/bootstrap"
-	"work_dot_bat/internal/projectconfig"
-	"work_dot_bat/internal/projects"
+	"work_dot_bat/src/internal/bootstrap"
+	"work_dot_bat/src/internal/projectconfig"
+	"work_dot_bat/src/internal/projects"
 )
 
 func assets(t *testing.T) (vendor, templates fs.FS) {
 	t.Helper()
-	v, err := fs.Sub(wdb.Vendor, "vendor")
+	v, err := fs.Sub(wdb.Vendor, "src/vendor")
 	if err != nil {
 		t.Fatal(err)
 	}

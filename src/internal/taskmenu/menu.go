@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"work_dot_bat/internal/menu"
-	"work_dot_bat/internal/planstatus"
+	"work_dot_bat/src/internal/menu"
+	"work_dot_bat/src/internal/planstatus"
 )
 
 // Menu is the task picker. Tasks, EnsureFrontmatter and AddPlan are seams for tests; New

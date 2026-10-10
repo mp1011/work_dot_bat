@@ -11,13 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"work_dot_bat/internal/agentcmd"
-	"work_dot_bat/internal/agentsession"
-	"work_dot_bat/internal/planclaims"
-	"work_dot_bat/internal/planstatus"
-	"work_dot_bat/internal/repo"
-	"work_dot_bat/internal/taskmenu"
-	"work_dot_bat/internal/worktree"
+	"work_dot_bat/src/internal/agentcmd"
+	"work_dot_bat/src/internal/agentsession"
+	"work_dot_bat/src/internal/planclaims"
+	"work_dot_bat/src/internal/planstatus"
+	"work_dot_bat/src/internal/repo"
+	"work_dot_bat/src/internal/taskmenu"
+	"work_dot_bat/src/internal/worktree"
 )
 
 func writePlan(t *testing.T, root, rel, content string) {

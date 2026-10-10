@@ -13,6 +13,11 @@ It was extracted from music_mountain and ported from Node/TypeScript to Go; the 
 
 Build for every platform with `scripts/build-release.sh [version]` (binaries land in `dist/work_dot_bat_<os>_<arch>[.exe]`; needs only the Go toolchain), or for this machine with `go build -o work_dot_bat ./cmd/work_dot_bat`. Put the binary on your `PATH`, or set `WORK_DOT_BAT_BIN`. Check a build with `scripts/smoke.sh <binary>`.
 
+To automatically add `bin` to your `PATH`:
+- Windows (PowerShell): `.\scripts\add-to-path.ps1`
+- Windows (Command Prompt): `.\scripts\add-to-path.bat`
+- Linux / macOS / Git Bash: `./scripts/add-to-path.sh`
+
 `bin\*.bat` (Windows) and `bin/*` (POSIX) are thin wrappers that find the binary (`WORK_DOT_BAT_BIN`, then `PATH`, then `dist/`) and pass the tool name through, e.g. `bin\work.bat project=<name>`.
 
 ## Commands

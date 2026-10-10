@@ -11,13 +11,13 @@ import (
 	"strings"
 	"time"
 
-	"work_dot_bat/internal/planclaims"
-	"work_dot_bat/internal/planstatus"
-	"work_dot_bat/internal/proc"
-	"work_dot_bat/internal/projectconfig"
-	"work_dot_bat/internal/projects"
-	"work_dot_bat/internal/repo"
-	"work_dot_bat/internal/testrunner"
+	"work_dot_bat/src/internal/planclaims"
+	"work_dot_bat/src/internal/planstatus"
+	"work_dot_bat/src/internal/proc"
+	"work_dot_bat/src/internal/projectconfig"
+	"work_dot_bat/src/internal/projects"
+	"work_dot_bat/src/internal/repo"
+	"work_dot_bat/src/internal/testrunner"
 )
 
 // Command is a configured command (build, test, extra check).

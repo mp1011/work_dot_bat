@@ -4,9 +4,9 @@ package work_dot_bat
 
 import "embed"
 
-// Vendor is vendor/: the manifest and the files it versions, laid out as in a target repo.
+// Vendor is src/vendor/: the manifest and the files it versions, laid out as in a target repo.
 //
-//go:embed all:vendor
+//go:embed all:src/vendor
 var Vendor embed.FS
 
 // Templates is templates/files/: the agent docs, instructions and settings a new repo gets.

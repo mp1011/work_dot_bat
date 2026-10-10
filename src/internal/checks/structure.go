@@ -11,7 +11,7 @@ import (
 	"sort"
 	"strings"
 
-	"work_dot_bat/internal/projectconfig"
+	"work_dot_bat/src/internal/projectconfig"
 )
 
 // The machine-owned region of the structure doc is between these markers (inserted on first

@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 	"time"
-	"work_dot_bat/internal/proc"
+	"work_dot_bat/src/internal/proc"
 
-	"work_dot_bat/internal/planclaims"
-	"work_dot_bat/internal/planstatus"
+	"work_dot_bat/src/internal/planclaims"
+	"work_dot_bat/src/internal/planstatus"
 )
 
 func plan(path, status string, mods ...func(*Plan)) Plan {

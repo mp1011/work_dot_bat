@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"work_dot_bat/internal/planstatus"
+	"work_dot_bat/src/internal/planstatus"
 )
 
 // Availability is the verdict on the "Merge back into main" option. Reason is the whole

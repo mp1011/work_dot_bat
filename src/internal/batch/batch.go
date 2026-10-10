@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"work_dot_bat/internal/agentcmd"
-	"work_dot_bat/internal/agentsession"
+	"work_dot_bat/src/internal/agentcmd"
+	"work_dot_bat/src/internal/agentsession"
 )
 
 const MaxAttempts = 3

@@ -11,10 +11,10 @@ import (
 	"strconv"
 	"time"
 
-	"work_dot_bat/internal/agentcmd"
-	"work_dot_bat/internal/agentsession"
-	"work_dot_bat/internal/batch"
-	"work_dot_bat/internal/repo"
+	"work_dot_bat/src/internal/agentcmd"
+	"work_dot_bat/src/internal/agentsession"
+	"work_dot_bat/src/internal/batch"
+	"work_dot_bat/src/internal/repo"
 )
 
 // AgentRunner runs an agent command with the terminal passed straight through and returns its

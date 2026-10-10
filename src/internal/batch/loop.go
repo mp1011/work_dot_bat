@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"work_dot_bat/internal/agentcmd"
-	"work_dot_bat/internal/planstatus"
+	"work_dot_bat/src/internal/agentcmd"
+	"work_dot_bat/src/internal/planstatus"
 )
 
 // IsSubtaskEligible: anything not yet resolved.

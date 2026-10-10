@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"work_dot_bat/internal/projectconfig"
-	"work_dot_bat/internal/projects"
-	"work_dot_bat/internal/wrappers"
+	"work_dot_bat/src/internal/projectconfig"
+	"work_dot_bat/src/internal/projects"
+	"work_dot_bat/src/internal/wrappers"
 )
 
 type IO struct {

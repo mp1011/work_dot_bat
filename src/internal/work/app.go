@@ -9,14 +9,14 @@ import (
 	"strings"
 	"time"
 
-	"work_dot_bat/internal/agentcmd"
-	"work_dot_bat/internal/agentsession"
-	"work_dot_bat/internal/batch"
-	"work_dot_bat/internal/menu"
-	"work_dot_bat/internal/planclaims"
-	"work_dot_bat/internal/planstatus"
-	"work_dot_bat/internal/taskmenu"
-	"work_dot_bat/internal/worktree"
+	"work_dot_bat/src/internal/agentcmd"
+	"work_dot_bat/src/internal/agentsession"
+	"work_dot_bat/src/internal/batch"
+	"work_dot_bat/src/internal/menu"
+	"work_dot_bat/src/internal/planclaims"
+	"work_dot_bat/src/internal/planstatus"
+	"work_dot_bat/src/internal/taskmenu"
+	"work_dot_bat/src/internal/worktree"
 )
 
 // App is the interactive launcher over one project. Fields marked "seam" have working defaults

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"work_dot_bat/internal/menu"
+	"work_dot_bat/src/internal/menu"
 )
 
 const root = "C:/repos/mm"

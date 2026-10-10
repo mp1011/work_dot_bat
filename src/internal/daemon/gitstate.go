@@ -4,7 +4,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
-	"work_dot_bat/internal/planstatus"
+	"work_dot_bat/src/internal/planstatus"
 )
 
 // GitFunc runs git in dir and returns stdout.

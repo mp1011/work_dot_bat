@@ -8,9 +8,9 @@ import (
 	"time"
 
 	wdb "work_dot_bat"
-	"work_dot_bat/internal/maintcli"
-	"work_dot_bat/internal/repo"
-	"work_dot_bat/internal/tools"
+	"work_dot_bat/src/internal/maintcli"
+	"work_dot_bat/src/internal/repo"
+	"work_dot_bat/src/internal/tools"
 )
 
 func maintConfig() maintcli.Config {
@@ -18,7 +18,7 @@ func maintConfig() maintcli.Config {
 	if root == "" {
 		root, _ = os.Getwd()
 	}
-	vendor, _ := fs.Sub(wdb.Vendor, "vendor")
+	vendor, _ := fs.Sub(wdb.Vendor, "src/vendor")
 	templates, _ := fs.Sub(wdb.Templates, "templates/files")
 	st, err := os.Stdin.Stat()
 	return maintcli.Config{

@@ -11,7 +11,7 @@ import (
 	"sort"
 	"strings"
 
-	"work_dot_bat/internal/planstatus"
+	"work_dot_bat/src/internal/planstatus"
 )
 
 // Item is a plan as the menu lists it; IsSubtask marks a row grouped under its parent.

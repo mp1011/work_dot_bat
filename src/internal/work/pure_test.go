@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"work_dot_bat/internal/planstatus"
+	"work_dot_bat/src/internal/planstatus"
 )
 
 func keys(opts []Option) []string {

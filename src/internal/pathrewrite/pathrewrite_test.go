@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"work_dot_bat/internal/managed"
+	"work_dot_bat/src/internal/managed"
 )
 
 func testMap() []Mapping {

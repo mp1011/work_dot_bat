@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"work_dot_bat/internal/agentcmd"
-	"work_dot_bat/internal/taskmenu"
+	"work_dot_bat/src/internal/agentcmd"
+	"work_dot_bat/src/internal/taskmenu"
 )
 
 // pushRig scripts the gate's results and records everything the workflow launches.

@@ -2,10 +2,8 @@
   "checks": [],
   "projectStructureDoc": "agent_docs/02_project_structure.md",
   "projectStructureDirs": [
-    "cmd",
-    "internal",
-    "bin",
-    "scripts"
+    "src",
+    ".tools"
   ],
   "build": [
     {
