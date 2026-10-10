@@ -15,6 +15,9 @@ import (
 	"work_dot_bat/internal/planstatus"
 	"work_dot_bat/internal/proc"
 	"work_dot_bat/internal/projectconfig"
+	"work_dot_bat/internal/projects"
+	"work_dot_bat/internal/repo"
+	"work_dot_bat/internal/testrunner"
 )
 
 // Command is a configured command (build, test, extra check).
@@ -32,12 +35,13 @@ type ExtraCheck struct {
 
 // Config is the part of work_dot_bat.config.json that run-checks reads.
 type Config struct {
-	Checks      []string     `json:"checks"`
-	ChecksSet   bool         `json:"-"`
-	ExtraChecks []ExtraCheck `json:"extraChecks"`
-	Build       []Command    `json:"build"`
-	LightTest   *Command     `json:"lightTest"`
-	HeavyTest   *Command     `json:"heavyTest"`
+	Checks      []string              `json:"checks"`
+	ChecksSet   bool                  `json:"-"`
+	ExtraChecks []ExtraCheck          `json:"extraChecks"`
+	Build       []Command             `json:"build"`
+	LightTest   *Command              `json:"lightTest"`
+	HeavyTest   *Command              `json:"heavyTest"`
+	Tests       *projects.TestsConfig `json:"-"`
 }
 
 // LoadConfig reads <root>/work_dot_bat.config.json.
@@ -81,11 +85,13 @@ func NeedsShell(c Command) bool { return c.Shell != nil && *c.Shell }
 
 // Env supplies what the in-process checks need.
 type Env struct {
-	Out, Err io.Writer
-	Git      GitFunc
-	Now      func() time.Time
+	Out, Err     io.Writer
+	Git          GitFunc
+	Now          func() time.Time
 	// Runner runs a command check; nil uses proc.Run.
-	Run func(ctx context.Context, c Check, cwd string) int
+	Run          func(ctx context.Context, c Check, cwd string) int
+	RegistryFile string
+	Projects     []projects.Project
 }
 
 func (e Env) now() time.Time {
@@ -193,9 +199,9 @@ func fromCommand(c Command, name, phase string) Check {
 }
 
 // BuildCheckList is the ordered gate for a config: tool-owned checks, the repo's extraChecks, its
-// build commands, then light and heavy tests. noTighten is passed to the ratchet checks (CI must
-// not rewrite baselines).
-func (e Env) BuildCheckList(c Config, noTighten bool) []Check {
+// build commands, then test layer commands (or legacy light and heavy tests). noTighten is passed
+// to the ratchet checks (CI must not rewrite baselines).
+func (e Env) BuildCheckList(c Config, noTighten bool, targetLayers ...string) []Check {
 	enabled := projectconfig.ToolCheckIDs
 	if c.ChecksSet {
 		enabled = c.Checks
@@ -212,11 +218,45 @@ func (e Env) BuildCheckList(c Config, noTighten bool) []Check {
 	for _, b := range c.Build {
 		checks = append(checks, fromCommand(b, "Build: "+FormatCommand(b), ""))
 	}
-	if c.LightTest != nil {
-		checks = append(checks, fromCommand(*c.LightTest, "Light tests: "+FormatCommand(*c.LightTest), "unit"))
+
+	tiers := testrunner.AllLayers
+	if len(targetLayers) == 1 && targetLayers[0] != "" && targetLayers[0] != testrunner.LayerAll {
+		if t, ok := testrunner.TiersToRun(targetLayers[0]); ok {
+			tiers = t
+		} else {
+			tiers = targetLayers
+		}
+	} else if len(targetLayers) > 1 {
+		tiers = targetLayers
 	}
-	if c.HeavyTest != nil {
-		checks = append(checks, fromCommand(*c.HeavyTest, "Heavy tests: "+FormatCommand(*c.HeavyTest), "e2e"))
+
+	if c.Tests != nil && !c.Tests.IsEmpty() {
+		for _, tier := range tiers {
+			cmds, ok := testrunner.CommandsForLayer(projects.Project{Tests: *c.Tests}, tier)
+			if !ok {
+				continue
+			}
+			for _, cmd := range cmds {
+				if len(cmd) == 0 {
+					continue
+				}
+				checks = append(checks, Check{
+					Name:  fmt.Sprintf("[%s] %s", tier, strings.Join(cmd, " ")),
+					Phase: "test",
+					Cmd:   cmd[0],
+					Args:  cmd[1:],
+				})
+			}
+		}
+	} else {
+		hasLight := contains(tiers, testrunner.LayerLight) || len(targetLayers) == 0
+		hasHeavy := contains(tiers, testrunner.LayerHeavy) || contains(tiers, testrunner.LayerUltraHeavy) || len(targetLayers) == 0
+		if hasLight && c.LightTest != nil {
+			checks = append(checks, fromCommand(*c.LightTest, "Light tests: "+FormatCommand(*c.LightTest), "unit"))
+		}
+		if hasHeavy && c.HeavyTest != nil {
+			checks = append(checks, fromCommand(*c.HeavyTest, "Heavy tests: "+FormatCommand(*c.HeavyTest), "e2e"))
+		}
 	}
 	return checks
 }
@@ -228,7 +268,7 @@ func (e Env) BuildCheckList(c Config, noTighten bool) []Check {
 func (e Env) RunChecks(ctx context.Context, checks []Check, cwd string) (failures, skipped []string) {
 	log := func(format string, a ...any) { fmt.Fprintf(e.Out, format+"\n", a...) }
 	for _, c := range checks {
-		if (c.Phase == "unit" || c.Phase == "e2e") && len(failures) > 0 {
+		if (c.Phase == "unit" || c.Phase == "e2e" || c.Phase == "test") && len(failures) > 0 {
 			log("\n--- %s ---", c.Name)
 			log("⏭️  Skipped — %d earlier check(s) failed: %s", len(failures), strings.Join(failures, ", "))
 			skipped = append(skipped, c.Name)
@@ -437,7 +477,9 @@ func (e Env) Dispatch(ctx context.Context, name string, args []string) (code int
 // RunAutomatedTests runs the project's whole gate in cwd (a worktree is checked in the worktree,
 // never silently against the main checkout) and returns the failing check names. The config comes
 // from cwd, falling back to projectRoot's copy for a worktree that has not committed it yet.
-func (e Env) RunAutomatedTests(ctx context.Context, cwd, projectRoot string) []string {
+// If tests are configured in the project registry (projects.json), those layer commands are executed,
+// falling back to legacy work_dot_bat.config.json test commands when not defined.
+func (e Env) RunAutomatedTests(ctx context.Context, cwd, projectRoot string, targetLayers ...string) []string {
 	fmt.Fprintln(e.Out, "\n=== Running automated tests (build, checks and test suites from the project config) ===")
 	if cwd != projectRoot {
 		fmt.Fprintf(e.Out, "(in %s)\n", cwd)
@@ -457,6 +499,45 @@ func (e Env) RunAutomatedTests(ctx context.Context, cwd, projectRoot string) []s
 	if json.Unmarshal(b, &keys) == nil {
 		_, cfg.ChecksSet = keys["checks"]
 	}
-	failures, _ := e.RunChecks(ctx, e.BuildCheckList(cfg, false), cwd)
+
+	var proj *projects.Project
+	if len(e.Projects) > 0 {
+		name := os.Getenv(repo.ProjectNameEnv)
+		if name != "" {
+			proj = projects.FindProject(e.Projects, name)
+		}
+		if proj == nil {
+			for i := range e.Projects {
+				if projects.SamePath(e.Projects[i].Path, projectRoot) || projects.SamePath(e.Projects[i].Path, cwd) {
+					proj = &e.Projects[i]
+					break
+				}
+			}
+		}
+	} else {
+		regFile := e.RegistryFile
+		if regFile == "" {
+			regFile = projects.DefaultRegistryFile()
+		}
+		if list, _, err := projects.LoadRegistry(regFile); err == nil && len(list) > 0 {
+			name := os.Getenv(repo.ProjectNameEnv)
+			if name != "" {
+				proj = projects.FindProject(list, name)
+			}
+			if proj == nil {
+				for i := range list {
+					if projects.SamePath(list[i].Path, projectRoot) || projects.SamePath(list[i].Path, cwd) {
+						proj = &list[i]
+						break
+					}
+				}
+			}
+		}
+	}
+	if proj != nil && !proj.Tests.IsEmpty() {
+		cfg.Tests = &proj.Tests
+	}
+
+	failures, _ := e.RunChecks(ctx, e.BuildCheckList(cfg, false, targetLayers...), cwd)
 	return failures
 }

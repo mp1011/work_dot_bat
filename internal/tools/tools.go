@@ -14,6 +14,7 @@ type Run func(args []string) int
 var Names = []string{
 	"work", "auto_daemon", "prepare_for_push", "create_worktree", "auto_status",
 	"analyze_session", "reclassify_sessions", "migrate_state", "sync", "rewrite_paths", "bootstrap",
+	"test",
 }
 
 var registry = map[string]Run{}

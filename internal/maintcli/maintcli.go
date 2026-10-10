@@ -29,9 +29,10 @@ type Config struct {
 	Out, Err    io.Writer
 	// Interactive says whether stdin is a terminal that can answer questions.
 	Interactive bool
-	Vendor      fs.FS // the vendored files, laid out as in a target repo
-	Templates   fs.FS // templates/files
-	Now         func() time.Time
+	Vendor       fs.FS // the vendored files, laid out as in a target repo
+	Templates    fs.FS // templates/files
+	Now          func() time.Time
+	RegistryFile string
 }
 
 func (c Config) today() string {
@@ -122,6 +123,7 @@ func Bootstrap(c Config, args []string) int {
 	}
 	res, err := bootstrap.Run(c.Root, bootstrap.Options{
 		ProjectName: name, DryRun: dryRun, Vendor: c.Vendor, Templates: c.Templates, Today: c.today(),
+		RegistryFile: c.RegistryFile,
 	})
 	if err != nil {
 		fmt.Fprintln(c.Err, err.Error())

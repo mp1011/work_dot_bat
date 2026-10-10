@@ -11,6 +11,7 @@ import (
 
 	"work_dot_bat/internal/planstatus"
 	"work_dot_bat/internal/projectconfig"
+	"work_dot_bat/internal/projects"
 )
 
 func git(t *testing.T, dir string, args ...string) string {
@@ -220,3 +221,39 @@ func TestDevServerNoneStartsNothing(t *testing.T) {
 }
 
 var installCmd = projectconfig.Command{Cmd: "npm", Args: []string{"install"}}
+
+func TestLoadProvisioningFromProjectsJSON(t *testing.T) {
+	regDir := t.TempDir()
+	regFile := filepath.Join(regDir, "projects.json")
+	t.Setenv(projects.RegistryEnv, regFile)
+
+	root := t.TempDir()
+	installCmd := projects.Command{Cmd: "npm", Args: []string{"ci"}}
+	devCmd := projects.Command{Cmd: "npm", Args: []string{"run", "dev:test"}}
+	projs := []projects.Project{
+		{
+			Name:              "myrepo",
+			Path:              root,
+			Install:           &installCmd,
+			DevServer:         &devCmd,
+			WorktreeCopyFiles: []string{".env.local"},
+		},
+	}
+	if err := projects.SaveRegistry(regFile, projs); err != nil {
+		t.Fatal(err)
+	}
+
+	p, err := LoadProvisioning(root, root)
+	if err != nil {
+		t.Fatalf("LoadProvisioning failed: %v", err)
+	}
+	if p.Install == nil || p.Install.Cmd != "npm" || len(p.Install.Args) != 1 || p.Install.Args[0] != "ci" {
+		t.Errorf("p.Install = %+v", p.Install)
+	}
+	if p.DevServer == nil || p.DevServer.Cmd != "npm" || len(p.DevServer.Args) != 2 || p.DevServer.Args[1] != "dev:test" {
+		t.Errorf("p.DevServer = %+v", p.DevServer)
+	}
+	if len(p.WorktreeCopyFiles) != 1 || p.WorktreeCopyFiles[0] != ".env.local" {
+		t.Errorf("p.WorktreeCopyFiles = %+v", p.WorktreeCopyFiles)
+	}
+}

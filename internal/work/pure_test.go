@@ -58,6 +58,14 @@ func TestTaskMenuOptions(t *testing.T) {
 	}
 }
 
+func TestTestMenuOptions(t *testing.T) {
+	actions, nav := TestMenuOptions()
+	if !reflect.DeepEqual(keys(actions), []string{"u", "1", "2", "3"}) || !reflect.DeepEqual(keys(nav), []string{"b"}) {
+		t.Errorf("test menu options: %v %v", actions, nav)
+	}
+}
+
+
 func TestInsertAutoFlag(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{"---\nstatus: Not Started\n---\n\n# GOAL\ndo the thing\n", "---\nstatus: Not Started\nauto: true\n---\n\n# GOAL\ndo the thing\n"},

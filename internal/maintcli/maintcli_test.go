@@ -14,6 +14,7 @@ import (
 	wdb "work_dot_bat"
 	"work_dot_bat/internal/maintcli"
 	"work_dot_bat/internal/managed"
+	"work_dot_bat/internal/projects"
 	"work_dot_bat/internal/safetyhook"
 )
 
@@ -40,11 +41,13 @@ type rig struct {
 func newRig(t *testing.T) *rig {
 	v, tm := assets(t)
 	root := t.TempDir()
+	regFile := filepath.Join(t.TempDir(), "projects.json")
 	os.Mkdir(filepath.Join(root, ".git"), 0o755)
 	r := &rig{t: t, root: root}
 	r.cfg = maintcli.Config{
 		Root: root, ProjectName: "Acme", Out: &r.out, Err: &r.err, Vendor: v, Templates: tm,
-		Now: func() time.Time { return time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC) },
+		RegistryFile: regFile,
+		Now:          func() time.Time { return time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC) },
 	}
 	return r
 }
@@ -209,7 +212,7 @@ func TestBootstrapDryRunWritesNothingThenCreatesEverythingOnce(t *testing.T) {
 	if code := maintcli.Bootstrap(r.cfg, []string{"--dry-run"}); code != 0 {
 		t.Fatalf("%d %s", code, r.err.String())
 	}
-	if !strings.Contains(r.out.String(), "Would create: work_dot_bat.config.json") || r.has("agent_docs") || r.has("work_dot_bat.config.json") || r.has(".claude") {
+	if !strings.Contains(r.out.String(), "Would create: "+r.cfg.RegistryFile) || r.has("agent_docs") || r.has("work_dot_bat.config.json") || r.has(".claude") {
 		t.Errorf("a dry run must write nothing:\n%s", r.out.String())
 	}
 	if strings.Contains(r.out.String(), "Nothing is committed") {
@@ -220,8 +223,11 @@ func TestBootstrapDryRunWritesNothingThenCreatesEverythingOnce(t *testing.T) {
 	if code := maintcli.Bootstrap(r.cfg, nil); code != 0 {
 		t.Fatalf("%d %s", code, r.err.String())
 	}
+	if r.has("work_dot_bat.config.json") {
+		t.Errorf("bootstrap must not create work_dot_bat.config.json")
+	}
 	for _, want := range []string{
-		"work_dot_bat.config.json", "agent_docs/00_start_here.md", "agent_docs/01_overview.md", "agent_docs/02_project_structure.md",
+		"agent_docs/00_start_here.md", "agent_docs/01_overview.md", "agent_docs/02_project_structure.md",
 		"agent_docs/plan_template.md", "agent_docs/instructions/high_trust/do-work-yolo.md", "agent_docs/plans/.gitkeep",
 		"agent_docs/monolith_baseline.json", "agent_docs/duplication_baseline.json", "agent_docs/structural_duplication_baseline.json",
 		".claude/settings.json", ".git/hooks/pre-push", "scripts/work_dot_bat/plan-status.sh", "scripts/work_dot_bat/typescript/check-source-assertions.mjs",
@@ -238,9 +244,9 @@ func TestBootstrapDryRunWritesNothingThenCreatesEverythingOnce(t *testing.T) {
 	if doc := r.read("agent_docs/00_start_here.md"); !strings.Contains(doc, "AGENT DOCS") || !strings.Contains(doc, "Acme") || !strings.Contains(doc, "`npm install`") {
 		t.Errorf("%s", doc)
 	}
-	var cfg map[string]any
-	if err := json.Unmarshal([]byte(r.read("work_dot_bat.config.json")), &cfg); err != nil || cfg["projectStructureDoc"] != "agent_docs/02_project_structure.md" {
-		t.Errorf("config %v %v", cfg, err)
+	projs, errs, err := projects.LoadRegistry(r.cfg.RegistryFile)
+	if err != nil || len(errs) != 0 || len(projs) != 1 || projs[0].ProjectStructureDoc != "agent_docs/02_project_structure.md" {
+		t.Errorf("registered project %v %v %v", projs, errs, err)
 	}
 	if !strings.Contains(r.read(".gitignore"), ".work_dot_bat/") {
 		t.Errorf(".gitignore:\n%s", r.read(".gitignore"))

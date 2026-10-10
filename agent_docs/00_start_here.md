@@ -53,3 +53,7 @@ Start every session by reading **only**:
 - Heavy tests: (none configured)
 - Release builds: `scripts/build-release.sh` (all six OS/arch targets into `dist/`), then `scripts/smoke.sh dist/<binary>`
 - Mechanical gate (what the pre-push hook and CI run): `scripts/work_dot_bat/run-checks.sh`
+
+## Project Configuration
+
+Project configuration (build commands, dev server, install command, test suites, worktree file copies, and structure doc paths) is consolidated directly in `projects.json` (see `projects.example.json` for reference), with backwards compatibility for legacy `work_dot_bat.config.json`.

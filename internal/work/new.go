@@ -43,12 +43,12 @@ func isTerminal(w io.Writer) bool {
 
 // Main runs the launcher until the user quits. A SIGTERM cancels the context, which kills the
 // agent and lets the deferred claim release run; Ctrl-C belongs to the agent while it runs.
-func Main(root, projectName string, in io.Reader, out io.Writer, runTests func(ctx context.Context, cwd string) []string) int {
+func Main(root, projectName string, in io.Reader, out io.Writer, runTests func(ctx context.Context, cwd string, layers ...string) []string) int {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM)
 	defer stop()
 	app := New(root, projectName, in, out)
 	if runTests != nil {
-		app.RunTests = func() []string { return runTests(ctx, root) }
+		app.RunTests = func(layers ...string) []string { return runTests(ctx, root, layers...) }
 	}
 	return app.Run(ctx)
 }

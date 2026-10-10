@@ -248,8 +248,9 @@ type loopHarness struct {
 	logs     []string
 	// agent decides what the fake agent does to the task set for (planPath, attempt, callIndex).
 	agent func(h *loopHarness, planPath string, attempt int) AgentResult
-	tests [][]string
-	calls int
+	tests      [][]string
+	calls      int
+	layerCalls []string
 }
 
 func (h *loopHarness) set(path, status string) {
@@ -273,8 +274,11 @@ func (h *loopHarness) run(parent planstatus.Entry) LoopResult {
 			h.set(planPath, "Ready for Review")
 			return AgentResult{}
 		},
-		RunTests: func() []string {
+		RunTests: func(layers ...string) []string {
 			defer func() { h.calls++ }()
+			if len(layers) > 0 {
+				h.layerCalls = append(h.layerCalls, layers[0])
+			}
 			if h.calls < len(h.tests) {
 				return h.tests[h.calls]
 			}
@@ -413,5 +417,38 @@ func TestLoopReleasesClaimWhenAnIterationPanics(t *testing.T) {
 	}()
 	if len(h.released) != 1 {
 		t.Errorf("released %v", h.released)
+	}
+}
+
+func TestLoopRunsLightTestsAfterIterationAndHeavyTestsBeforeReadyForReview(t *testing.T) {
+	parent := planstatus.Entry{Path: "plans/test/single.md", Status: "In Progress"}
+	h := &loopHarness{t: t, tasks: []planstatus.Entry{parent}}
+	res := h.run(parent)
+	if !res.Success {
+		t.Fatalf("expected success, got %+v", res)
+	}
+	wantLayers := []string{"light", "heavy"}
+	if !reflect.DeepEqual(h.layerCalls, wantLayers) {
+		t.Errorf("got layer calls %v, want %v", h.layerCalls, wantLayers)
+	}
+}
+
+func TestLoopFailingLightTestPreventsProceeding(t *testing.T) {
+	parent := planstatus.Entry{Path: "plans/test/single.md", Status: "In Progress"}
+	h := &loopHarness{
+		t:     t,
+		tasks: []planstatus.Entry{parent},
+		tests: [][]string{{"lint"}, {"lint"}, {"lint"}}, // all 3 attempts fail
+	}
+	res := h.run(parent)
+	if res.Success || res.Reason != "tests-failed" {
+		t.Fatalf("expected tests-failed, got %+v", res)
+	}
+	// All calls should have been for "light", never proceeding to "heavy"
+	for _, l := range h.layerCalls {
+		if l != "light" {
+			t.Errorf("expected only light test calls on failure, got %v", h.layerCalls)
+			break
+		}
 	}
 }

@@ -16,6 +16,7 @@ import (
 
 	"work_dot_bat/internal/managed"
 	"work_dot_bat/internal/projectconfig"
+	"work_dot_bat/internal/projects"
 	"work_dot_bat/internal/repo"
 	"work_dot_bat/internal/safetyhook"
 	"work_dot_bat/internal/statemigrate"
@@ -385,11 +386,12 @@ type Result struct {
 
 // Options for Run.
 type Options struct {
-	ProjectName string
-	DryRun      bool
-	Vendor      fs.FS // the vendored files, as in a target repo
-	Templates   fs.FS // templates/files
-	Today       string
+	ProjectName  string
+	DryRun       bool
+	Vendor       fs.FS // the vendored files, as in a target repo
+	Templates    fs.FS // templates/files
+	Today        string
+	RegistryFile string
 }
 
 // Run is the whole flow: config first (never overwritten), then the files, then sync.
@@ -397,22 +399,77 @@ func Run(root string, o Options) (Result, error) {
 	if !syncer.IsMainCheckout(root) {
 		return Result{}, fmt.Errorf("%s is not a main git checkout (no .git directory); bootstrap the main checkout, not a worktree.", root)
 	}
-	loaded := projectconfig.Load(root)
-	if len(loaded.Errors) > 0 {
-		return Result{}, fmt.Errorf("Invalid %s:\n  %s", projectconfig.ConfigFile, strings.Join(loaded.Errors, "\n  "))
+
+	registryFile := o.RegistryFile
+	if registryFile == "" {
+		registryFile = projects.DefaultRegistryFile()
 	}
-	created := !loaded.Exists
+
+	projs, _, _ := projects.LoadRegistry(registryFile)
+	proj := projects.FindProjectByPath(projs, root)
+
 	var cfg repoConfig
-	if created {
-		fresh := projectconfig.NewRepoConfig(projectconfig.NpmDefaults())
-		cfg = toRepoConfig(fresh)
-		if !o.DryRun {
-			if _, err := projectconfig.Write(root, fresh); err != nil {
-				return Result{}, err
+	created := false
+
+	if proj != nil && proj.HasConfig() {
+		cfg = toRepoConfig(proj.ToConfigMap())
+	} else {
+		loaded := projectconfig.Load(root)
+		if loaded.Exists {
+			if len(loaded.Errors) > 0 {
+				return Result{}, fmt.Errorf("Invalid %s:\n  %s", projectconfig.ConfigFile, strings.Join(loaded.Errors, "\n  "))
+			}
+			cfg = toRepoConfig(loaded.Config)
+		} else {
+			created = true
+			name := o.ProjectName
+			if name == "" || name == "this project" {
+				name = projects.DefaultProjectName(root)
+			}
+			freshDefaults := projectconfig.NpmDefaults()
+			freshProj := projects.Project{
+				Name:                 name,
+				Path:                 root,
+				Build:                freshDefaults.Build,
+				Install:              freshDefaults.Install,
+				DevServer:            freshDefaults.DevServer,
+				ProjectStructureDoc:  StructureDoc,
+				ProjectStructureDirs: []string{"src"},
+			}
+			if freshDefaults.LightTest != nil {
+				freshProj.Tests.Light = [][]string{append([]string{freshDefaults.LightTest.Cmd}, freshDefaults.LightTest.Args...)}
+			}
+			if freshDefaults.HeavyTest != nil {
+				freshProj.Tests.Heavy = [][]string{append([]string{freshDefaults.HeavyTest.Cmd}, freshDefaults.HeavyTest.Args...)}
+			}
+			cfg = toRepoConfig(freshProj.ToConfigMap())
+
+			if !o.DryRun {
+				var updated []projects.Project
+				if proj != nil {
+					for _, p := range projs {
+						if projects.SamePath(p.Path, root) {
+							p.Build = freshProj.Build
+							p.Install = freshProj.Install
+							p.DevServer = freshProj.DevServer
+							p.Tests = freshProj.Tests
+							p.ProjectStructureDoc = freshProj.ProjectStructureDoc
+							p.ProjectStructureDirs = freshProj.ProjectStructureDirs
+						}
+						updated = append(updated, p)
+					}
+				} else {
+					var err error
+					updated, err = projects.AddProject(projs, freshProj)
+					if err != nil {
+						return Result{}, err
+					}
+				}
+				if err := projects.SaveRegistry(registryFile, updated); err != nil {
+					return Result{}, err
+				}
 			}
 		}
-	} else {
-		cfg = toRepoConfig(loaded.Config)
 	}
 
 	actions, err := Plan(root, cfg, o.ProjectName, o.Templates)
@@ -420,7 +477,11 @@ func Run(root string, o Options) (Result, error) {
 		return Result{}, err
 	}
 	if created {
-		actions = append([]Action{{Path: projectconfig.ConfigFile, Kind: KindConfig, Status: Create}}, actions...)
+		status := Create
+		if proj != nil {
+			status = Merge
+		}
+		actions = append([]Action{{Path: registryFile, Kind: KindConfig, Status: status}}, actions...)
 	}
 	if !o.DryRun {
 		if _, err := Apply(root, actions); err != nil {

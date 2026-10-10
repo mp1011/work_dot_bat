@@ -19,6 +19,7 @@ import (
 	"work_dot_bat/internal/repo"
 	"work_dot_bat/internal/tools"
 	"work_dot_bat/internal/worktree"
+	"work_dot_bat/internal/wrappers"
 )
 
 // Version is stamped at release build time: -ldflags "-X main.Version=1.2.3".
@@ -38,7 +39,17 @@ func main() {
 	os.Exit(run(os.Args[1:], env{os.Stdin, os.Stdout, os.Stderr, interactive, projects.DefaultRegistryFile()}))
 }
 
+var (
+	activeProject *projects.Project
+	activeEnv     *env
+)
+
 func run(argv []string, e env) int {
+	activeEnv = &e
+	defer func() {
+		activeEnv = nil
+		activeProject = nil
+	}()
 	fail := func(code int, format string, a ...any) int {
 		fmt.Fprintf(e.stderr, format+"\n", a...)
 		return code
@@ -52,6 +63,9 @@ func run(argv []string, e env) int {
 		if code, ok := runMaintCommand(argv, e); ok {
 			return code
 		}
+	}
+	if len(argv) > 0 && argv[0] == "install-wrappers" {
+		return runInstallWrappers(argv[1:], e)
 	}
 	if len(argv) > 0 && argv[0] == "worktree-info" {
 		return runWorktreeInfo(e)
@@ -101,6 +115,7 @@ func run(argv []string, e env) int {
 	if err := repo.Activate(project.Name, project.Path); err != nil {
 		return fail(1, "Cannot enter project %s: %v", project.Name, err)
 	}
+	activeProject = &project
 	fmt.Fprintf(e.stdout, "Project: %s (%s)\n", project.Name, project.Path)
 
 	runTool := tools.Lookup(tool)
@@ -157,6 +172,36 @@ func runPlanClaim(args []string, e env) int {
 	}
 	return planclaims.CLI{Root: root, Stdout: e.stdout, Stderr: e.stderr, Env: planclaims.DefaultEnv(),
 		Collect: planstatus.GitCollectWorktreeStatuses}.Run(args)
+}
+
+// runInstallWrappers (re)writes the repo-local .tools wrappers for project=<name>, or for every
+// registered project when none is given.
+func runInstallWrappers(args []string, e env) int {
+	name, _ := projects.ParseProjectArg(args)
+	list, _, err := projects.LoadRegistry(e.registry)
+	if err != nil {
+		fmt.Fprintln(e.stderr, err)
+		return 1
+	}
+	targets := list
+	if name != nil {
+		p, err := projects.ResolveProject(list, *name)
+		if err != nil {
+			fmt.Fprintln(e.stderr, err)
+			return 1
+		}
+		targets = []projects.Project{p}
+	}
+	code := 0
+	for _, p := range targets {
+		if _, err := wrappers.Install(p.Path, projects.ToolRoot(), p.Name); err != nil {
+			fmt.Fprintf(e.stderr, "%s: %v\n", p.Name, err)
+			code = 1
+			continue
+		}
+		fmt.Fprintf(e.stdout, "%s: wrote %s wrappers in %s\n", p.Name, wrappers.Dir, p.Path)
+	}
+	return code
 }
 
 func runWorktreeInfo(e env) int {

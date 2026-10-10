@@ -55,7 +55,7 @@ type LoopRun struct {
 	GetTasks func() []planstatus.Entry
 	// RunAgent runs the agent non-interactively; attempt is 1-based.
 	RunAgent     func(prompt, planPath string, attempt int) AgentResult
-	RunTests     func() []string
+	RunTests     func(layers ...string) []string
 	AcquireClaim func(planPath string) bool // nil = no claims
 	ReleaseClaim func(planPath string)
 	ReadPlan     func(planPath string) string
@@ -168,29 +168,44 @@ func runIteration(r LoopRun, target planstatus.Entry, planPath string, isParentR
 		}
 	}
 
-	// Two retries (three attempts) to fix the automated tests; the budget resets each iteration.
-	logf(fmt.Sprintf("\nRunning automated tests for \"%s\"...", planPath))
-	failures := r.RunTests()
-	attempts := 1
-	for len(failures) > 0 && attempts < maxTestAttempts {
-		logf(fmt.Sprintf("\nAutomated tests failed (%s). Sending failures back to agent to fix (attempt %d of %d)...", strings.Join(failures, ", "), attempts+1, maxTestAttempts))
-		content := ""
-		if r.ReadPlan != nil {
-			content = r.ReadPlan(planPath)
+	runTier := func(tier, tierLabel string) (bool, LoopResult) {
+		if r.RunTests == nil {
+			return true, LoopResult{}
 		}
-		prompt := agentcmd.BuildFailureFollowupPrompt(planPath, content, failures, attempts, maxTestAttempts) + agentcmd.LauncherClaimNote
-		if a := r.RunAgent(prompt, planPath, attempts+1); a.RateLimited {
-			return ratelimited(target), true
+		logf(fmt.Sprintf("\nRunning %s automated tests for \"%s\"...", tierLabel, planPath))
+		failures := r.RunTests(tier)
+		attempts := 1
+		for len(failures) > 0 && attempts < maxTestAttempts {
+			logf(fmt.Sprintf("\n%s automated tests failed (%s). Sending failures back to agent to fix (attempt %d of %d)...", tierLabel, strings.Join(failures, ", "), attempts+1, maxTestAttempts))
+			content := ""
+			if r.ReadPlan != nil {
+				content = r.ReadPlan(planPath)
+			}
+			prompt := agentcmd.BuildFailureFollowupPrompt(planPath, content, failures, attempts, maxTestAttempts) + agentcmd.LauncherClaimNote
+			if a := r.RunAgent(prompt, planPath, attempts+1); a.RateLimited {
+				return false, ratelimited(target)
+			}
+			attempts++
+			logf(fmt.Sprintf("\nRe-running %s automated tests (attempt %d of %d)...", tierLabel, attempts, maxTestAttempts))
+			failures = r.RunTests(tier)
 		}
-		attempts++
-		logf(fmt.Sprintf("\nRe-running automated tests (attempt %d of %d)...", attempts, maxTestAttempts))
-		failures = r.RunTests()
+		if len(failures) > 0 {
+			logf(fmt.Sprintf("\n[MANUAL INTERVENTION REQUIRED] %s automated tests failed for \"%s\" after %d attempts (all retries exhausted). Failing checks: %s. Ending loop.", tierLabel, planPath, attempts, strings.Join(failures, ", ")))
+			return false, LoopResult{Reason: "tests-failed", Task: target, Failures: failures}
+		}
+		logf(fmt.Sprintf("\n✅ %s automated tests passed for \"%s\".", tierLabel, planPath))
+		return true, LoopResult{}
 	}
-	if len(failures) > 0 {
-		logf(fmt.Sprintf("\n[MANUAL INTERVENTION REQUIRED] Automated tests failed for \"%s\" after %d attempts (all retries exhausted). Failing checks: %s. Ending loop.", planPath, attempts, strings.Join(failures, ", ")))
-		return LoopResult{Reason: "tests-failed", Task: target, Failures: failures}, true
+
+	// 1. Run light tests after code changes
+	if ok, res := runTier("light", "Light"); !ok {
+		return res, true
 	}
-	logf(fmt.Sprintf("\n✅ Automated tests passed for \"%s\".", planPath))
+
+	// 2. Run heavy tests before marking ready for review
+	if ok, res := runTier("heavy", "Heavy"); !ok {
+		return res, true
+	}
 
 	if t, ok := find(r.GetTasks(), target.Path); !ok || t.Status != "Ready for Review" {
 		r.UpdateStatus(target.Path, "Ready for Review")

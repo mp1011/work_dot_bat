@@ -95,7 +95,7 @@ type Runner struct {
 	StartDevServer func(path string)
 	SetStatus      func(treeRoot, planPath, status string) error
 	// RunTests runs the project's automated checks in cwd and returns the failing check names.
-	RunTests  func(ctx context.Context, cwd string) []string
+	RunTests  func(ctx context.Context, cwd string, layers ...string) []string
 	ReadPlans func(root string) []Plan
 	// OnActiveClaim is told which claim is held so a signal handler can release it.
 	OnActiveClaim func(*ClaimRecord)
@@ -655,12 +655,12 @@ func (r Runner) RunPlan(ctx context.Context, entry Plan, plans []Plan) PlanResul
 			if r.RunTests == nil {
 				return PlanResult{Status: "failed", Reason: "no automated test runner configured"}
 			}
-			if failures := r.RunTests(ctx, wt.Path); len(failures) > 0 {
-				r.log("Tests: ❌ (%s)", strings.Join(failures, ", "))
+			if failures := r.RunTests(ctx, wt.Path, "light"); len(failures) > 0 {
+				r.log("Light tests: ❌ (%s)", strings.Join(failures, ", "))
 				problem = Problem{Failures: failures}
 				continue
 			}
-			r.log("Tests: ✅")
+			r.log("Light tests: ✅")
 			if !HasNonPlanChanges(r.git(), wt.Path, baseSHA) {
 				r.log("Diff: ❌ (no non-plan changes produced)")
 				problem = Problem{NoChanges: true}
@@ -685,6 +685,13 @@ func (r Runner) RunPlan(ctx context.Context, entry Plan, plans []Plan) PlanResul
 				continue
 			}
 			r.log("Assessment: ✅ (complete)")
+
+			if failures := r.RunTests(ctx, wt.Path, "heavy"); len(failures) > 0 {
+				r.log("Heavy tests: ❌ (%s)", strings.Join(failures, ", "))
+				problem = Problem{Failures: failures}
+				continue
+			}
+			r.log("Heavy tests: ✅")
 
 			_ = r.setStatus(wt.Path, entry.Path, "Ready for Review")
 			if c := CommitInWorktree(r.git(), wt.Path, "auto: "+entry.Path); !c.OK {

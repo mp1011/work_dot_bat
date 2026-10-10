@@ -45,7 +45,7 @@ type App struct {
 	Guard     func() (stop func())                       // seam: see GuardInterrupt
 
 	// RunTests runs the project's automated checks and returns the failing check names.
-	RunTests  func() []string
+	RunTests  func(layers ...string) []string
 	MergeBack func(task *taskmenu.Item)
 	Loop      func(ctx context.Context, parent *taskmenu.Item, agent string) (success bool)
 	Push      func(agent string) (newAgent string, pushed bool)
@@ -255,7 +255,15 @@ func (a App) noTaskStep(ctx context.Context, agent *string) flow {
 			return back
 		}
 	case "t":
-		a.runTests()
+		a.testMenu()
+	case "tu":
+		a.runTests("ultra_light")
+	case "tl":
+		a.runTests("light")
+	case "th":
+		a.runTests("heavy")
+	case "tp":
+		a.runTests("ultra_heavy")
 	case "s":
 		a.log("\nReturning to task selection...")
 		return back
@@ -268,12 +276,36 @@ func (a App) noTaskStep(ctx context.Context, agent *string) flow {
 	return stay
 }
 
-func (a App) runTests() {
-	if a.RunTests == nil {
-		a.log("\n[NOT YET PORTED] The automated test runner is not available in the Go launcher yet.")
+func (a App) testMenu() {
+	a.log("\nSelect Test Level:")
+	actions, nav := TestMenuOptions()
+	keys := printOptions(a, actions, nav)
+	opt, ok := a.ask(fmt.Sprintf("Select option (%s): ", keys))
+	if !ok {
 		return
 	}
-	a.RunTests()
+	switch strings.ToLower(strings.TrimSpace(opt)) {
+	case "u", "0", "ultra", "ultra_light", "ultralight":
+		a.runTests("ultra_light")
+	case "1", "l", "light":
+		a.runTests("light")
+	case "2", "h", "heavy":
+		a.runTests("heavy")
+	case "3", "p", "tp", "gate", "full", "ultra_heavy":
+		a.runTests("ultra_heavy")
+	case "b", "back", "q", "quit", "":
+		return
+	default:
+		a.logf("\nInvalid option \"%s\". Please select one of %s.", opt, keys)
+	}
+}
+
+func (a App) runTests(layers ...string) []string {
+	if a.RunTests == nil {
+		a.log("\n[NOT YET PORTED] The automated test runner is not available in the Go launcher yet.")
+		return nil
+	}
+	return a.RunTests(layers...)
 }
 
 // loopUntilDone is loop mode: every eligible subtask of the parent, then the parent, run
@@ -311,7 +343,7 @@ func (a App) loopUntilDone(ctx context.Context, parent *taskmenu.Item, agent str
 
 func (a App) promptRunTests() {
 	if a.confirm("\nDo you want to run automated tests? (y/n): ") {
-		a.runTests()
+		a.testMenu()
 	}
 }
 
@@ -417,7 +449,15 @@ func (a App) taskStep(ctx context.Context, task *taskmenu.Item, agent *string) f
 			a.MergeBack(task)
 		}
 	case "t":
-		a.runTests()
+		a.testMenu()
+	case "tu":
+		a.runTests("ultra_light")
+	case "tl":
+		a.runTests("light")
+	case "th":
+		a.runTests("heavy")
+	case "tp":
+		a.runTests("ultra_heavy")
 	case "a":
 		switch {
 		case task.Auto:

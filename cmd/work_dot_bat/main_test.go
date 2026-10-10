@@ -159,3 +159,66 @@ func TestListTasksAliasesPlanStatus(t *testing.T) {
 		t.Errorf("code %d out %q err %q", code, out.String(), errb.String())
 	}
 }
+
+func TestTestCommandLayerExecution(t *testing.T) {
+	registry, _ := setup(t, []projects.Project{{
+		Name: "myproj",
+		Tests: projects.TestsConfig{
+			UltraLight: projects.CommandList{{"go", "version"}},
+			Light:      projects.CommandList{{"go", "version"}},
+		},
+	}})
+
+	// Run ultra_light
+	code, stdout, stderr := exec(t, []string{"test", "ultra_light", "project=myproj"}, "", false, registry)
+	if code != 0 {
+		t.Fatalf("expected code 0, got %d. stderr: %s", code, stderr)
+	}
+	if !strings.Contains(stdout, "go version") || !strings.Contains(stdout, "passed") {
+		t.Errorf("expected passing output, got: %s", stdout)
+	}
+
+	// Unconfigured heavy tier
+	code, stdout, stderr = exec(t, []string{"test", "heavy", "project=myproj"}, "", false, registry)
+	if code != 0 {
+		t.Fatalf("expected code 0, got %d. stderr: %s", code, stderr)
+	}
+	if !strings.Contains(stdout, "heavy") || !strings.Contains(stdout, "Skipping") {
+		t.Errorf("expected skip notice, got: %s", stdout)
+	}
+
+	// Invalid tier
+	code, _, stderr = exec(t, []string{"test", "invalid_layer", "project=myproj"}, "", false, registry)
+	if code != 2 {
+		t.Fatalf("expected code 2 for invalid tier, got %d. stderr: %s", code, stderr)
+	}
+	if !strings.Contains(stderr, "Allowed tiers") {
+		t.Errorf("expected stderr to list allowed tiers, got: %s", stderr)
+	}
+
+	// Too many args
+	code, _, stderr = exec(t, []string{"test", "light", "heavy", "project=myproj"}, "", false, registry)
+	if code != 2 {
+		t.Fatalf("expected code 2 for too many args, got %d. stderr: %s", code, stderr)
+	}
+	if !strings.Contains(stderr, "Usage:") {
+		t.Errorf("expected usage on stderr, got: %s", stderr)
+	}
+}
+
+
+func TestInstallWrappersCommand(t *testing.T) {
+	registry, repoDir := setup(t, []projects.Project{{Name: "foo"}})
+	code, stdout, stderr := exec(t, []string{"install-wrappers", "project=foo"}, "", false, registry)
+	if code != 0 || !strings.Contains(stdout, "foo: wrote .tools wrappers") {
+		t.Fatalf("code %d stdout %q stderr %q", code, stdout, stderr)
+	}
+	sh, err := os.ReadFile(filepath.Join(repoDir, ".tools", "work"))
+	if err != nil || !strings.Contains(string(sh), "project=foo") {
+		t.Errorf("wrapper %q err %v", sh, err)
+	}
+	code, _, stderr = exec(t, []string{"install-wrappers", "project=nope"}, "", false, registry)
+	if code == 0 || !strings.Contains(stderr, `"nope"`) {
+		t.Errorf("unknown project: code %d stderr %q", code, stderr)
+	}
+}

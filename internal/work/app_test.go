@@ -260,6 +260,7 @@ func TestTaskMenuGolden(t *testing.T) {
 	}
 }
 
+
 func TestGeneralRequestUsesPlanContextPrompt(t *testing.T) {
 	f := newFixture(t, "g", "look at the tests", "a", "n", "s")
 	f.selecting("plans/x.md")
@@ -358,6 +359,86 @@ func TestNoTaskMenuCommit(t *testing.T) {
 	}
 }
 
+func TestTestMenuSelection(t *testing.T) {
+	cases := []struct {
+		input     string
+		wantLayer string
+	}{
+		{"u", "ultra_light"},
+		{"0", "ultra_light"},
+		{"1", "light"},
+		{"l", "light"},
+		{"2", "heavy"},
+		{"h", "heavy"},
+		{"3", "ultra_heavy"},
+		{"p", "ultra_heavy"},
+	}
+	for _, c := range cases {
+		var calledWith []string
+		f := newFixture(t, "t", c.input, "s")
+		f.app.RunTests = func(layers ...string) []string {
+			calledWith = layers
+			return nil
+		}
+		f.selecting("plans/x.md")
+		f.run()
+		if len(calledWith) != 1 || calledWith[0] != c.wantLayer {
+			t.Errorf("input %q: got layers %v, want [%s]", c.input, calledWith, c.wantLayer)
+		}
+		if !strings.Contains(f.out.String(), "Select Test Level:") || !strings.Contains(f.out.String(), "Select option (u/1/2/3/b): ") {
+			t.Errorf("input %q: menu output:\n%s", c.input, f.out.String())
+		}
+	}
+}
+
+func TestTestMenuBack(t *testing.T) {
+	var called bool
+	f := newFixture(t, "t", "b", "s")
+	f.app.RunTests = func(layers ...string) []string {
+		called = true
+		return nil
+	}
+	f.selecting("plans/x.md")
+	f.run()
+	if called {
+		t.Errorf("RunTests was called when choosing back")
+	}
+}
+
+func TestNoTaskTestMenu(t *testing.T) {
+	var calledWith []string
+	f := newFixture(t, "t", "1", "s")
+	f.app.RunTests = func(layers ...string) []string {
+		calledWith = layers
+		return nil
+	}
+	f.app.Pick = func() taskmenu.Result {
+		return taskmenu.Result{}
+	}
+	f.run()
+	if len(calledWith) != 1 || calledWith[0] != "light" {
+		t.Errorf("no task test menu: got %v, want [light]", calledWith)
+	}
+}
+
+func TestPostSessionRunTestsShowsTestMenu(t *testing.T) {
+	var calledWith []string
+	f := newFixture(t, "w", "", "c", "y", "1", "s")
+	f.app.RunTests = func(layers ...string) []string {
+		calledWith = layers
+		return nil
+	}
+	f.selecting("plans/x.md")
+	f.run()
+	if len(calledWith) != 1 || calledWith[0] != "light" {
+		t.Errorf("got %v, want [light]", calledWith)
+	}
+	if !strings.Contains(f.out.String(), "Do you want to run automated tests? (y/n): ") ||
+		!strings.Contains(f.out.String(), "Select Test Level:") {
+		t.Errorf("output missing prompt or test menu:\n%s", f.out.String())
+	}
+}
+
 func TestEndOfInputQuits(t *testing.T) {
 	f := newFixture(t)
 	f.selecting("plans/x.md")
@@ -444,7 +525,7 @@ func TestLoopModeRunsNonInteractivelyAndReleasesClaims(t *testing.T) {
 	writePlan(t, f.root, "plans/p/plan.md", "---\nstatus: In Progress\n---\n\n# GOAL\nparent\n")
 	writePlan(t, f.root, "plans/p/01.md", "---\nstatus: Not Started\nsubtask_of: plans/p/plan.md\n---\n\n# GOAL\nchild\n")
 	f.selecting("plans/p/plan.md")
-	f.app.RunTests = func() []string { return nil }
+	f.app.RunTests = func(layers ...string) []string { return nil }
 	var held [][]string
 	f.onAgent = func(context.Context) int {
 		held = append(held, f.claimFiles())

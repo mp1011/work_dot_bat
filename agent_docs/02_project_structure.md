@@ -4,4 +4,150 @@ This is a practical map of the repository. Summaries are intentionally brief.
 
 <!-- BEGIN GENERATED FILE LISTING - do not edit by hand; run scripts/work_dot_bat/update-project-structure.sh -->
 
+- `bin\`
+  - `auto_daemon` - <!-- TODO: summarize -->
+  - `auto_daemon.bat` - <!-- TODO: summarize -->
+  - `auto_status` - <!-- TODO: summarize -->
+  - `auto_status.bat` - <!-- TODO: summarize -->
+  - `create_worktree` - <!-- TODO: summarize -->
+  - `create_worktree.bat` - <!-- TODO: summarize -->
+  - `prepare_for_push` - <!-- TODO: summarize -->
+  - `prepare_for_push.bat` - <!-- TODO: summarize -->
+  - `work` - <!-- TODO: summarize -->
+  - `work.bat` - <!-- TODO: summarize -->
+  - `work_dot_bat` - <!-- TODO: summarize -->
+  - `work_dot_bat.bat` - <!-- TODO: summarize -->
+- `cmd\`
+  - `work_dot_bat\`
+    - `auto.go` - <!-- TODO: summarize -->
+    - `checks.go` - <!-- TODO: summarize -->
+    - `main.go` - <!-- TODO: summarize -->
+    - `main_test.go` - <!-- TODO: summarize -->
+    - `maint.go` - <!-- TODO: summarize -->
+    - `sessions.go` - <!-- TODO: summarize -->
+    - `work.go` - <!-- TODO: summarize -->
+- `internal\`
+  - `agentcmd\`
+    - `agentcmd.go` - <!-- TODO: summarize -->
+    - `agentcmd_test.go` - <!-- TODO: summarize -->
+  - `agentsession\`
+    - `agentsession_test.go` - <!-- TODO: summarize -->
+    - `analysis.go` - <!-- TODO: summarize -->
+    - `classify.go` - <!-- TODO: summarize -->
+    - `rows.go` - <!-- TODO: summarize -->
+    - `session.go` - <!-- TODO: summarize -->
+  - `batch\`
+    - `batch.go` - <!-- TODO: summarize -->
+    - `batch_test.go` - <!-- TODO: summarize -->
+    - `loop.go` - <!-- TODO: summarize -->
+  - `bootstrap\`
+    - `bootstrap.go` - <!-- TODO: summarize -->
+  - `checks\`
+    - `audit.go` - <!-- TODO: summarize -->
+    - `checks_test.go` - <!-- TODO: summarize -->
+    - `duplication.go` - <!-- TODO: summarize -->
+    - `git.go` - <!-- TODO: summarize -->
+    - `monolith.go` - <!-- TODO: summarize -->
+    - `runchecks.go` - <!-- TODO: summarize -->
+    - `skills.go` - <!-- TODO: summarize -->
+    - `structure.go` - <!-- TODO: summarize -->
+    - `structure_test.go` - <!-- TODO: summarize -->
+  - `daemon\`
+    - `agent.go` - <!-- TODO: summarize -->
+    - `cli.go` - <!-- TODO: summarize -->
+    - `daemon_test.go` - <!-- TODO: summarize -->
+    - `gitstate.go` - <!-- TODO: summarize -->
+    - `loop.go` - <!-- TODO: summarize -->
+    - `plans.go` - <!-- TODO: summarize -->
+    - `run.go` - <!-- TODO: summarize -->
+    - `run_test.go` - <!-- TODO: summarize -->
+  - `maintcli\`
+    - `maintcli.go` - <!-- TODO: summarize -->
+    - `maintcli_test.go` - <!-- TODO: summarize -->
+  - `managed\`
+    - `managed.go` - <!-- TODO: summarize -->
+    - `managed_test.go` - <!-- TODO: summarize -->
+    - `manifest.go` - <!-- TODO: summarize -->
+  - `menu\`
+    - `menu.go` - <!-- TODO: summarize -->
+    - `menu_test.go` - <!-- TODO: summarize -->
+  - `pathrewrite\`
+    - `pathrewrite.go` - <!-- TODO: summarize -->
+    - `pathrewrite_test.go` - <!-- TODO: summarize -->
+  - `planclaims\`
+    - `claims.go` - <!-- TODO: summarize -->
+    - `cli.go` - <!-- TODO: summarize -->
+    - `planclaims_test.go` - <!-- TODO: summarize -->
+    - `process_unix.go` - <!-- TODO: summarize -->
+    - `process_windows.go` - <!-- TODO: summarize -->
+    - `prune.go` - <!-- TODO: summarize -->
+  - `planstatus\`
+    - `check.go` - <!-- TODO: summarize -->
+    - `cli.go` - <!-- TODO: summarize -->
+    - `commands.go` - <!-- TODO: summarize -->
+    - `frontmatter.go` - <!-- TODO: summarize -->
+    - `planstatus_test.go` - <!-- TODO: summarize -->
+    - `scan.go` - <!-- TODO: summarize -->
+    - `tasks.go` - <!-- TODO: summarize -->
+    - `tasks_test.go` - <!-- TODO: summarize -->
+    - `worktrees.go` - <!-- TODO: summarize -->
+    - `worktrees_test.go` - <!-- TODO: summarize -->
+  - `proc\`
+    - `proc.go` - <!-- TODO: summarize -->
+    - `proc_unix.go` - <!-- TODO: summarize -->
+    - `proc_windows.go` - <!-- TODO: summarize -->
+  - `projectconfig\`
+    - `projectconfig.go` - <!-- TODO: summarize -->
+    - `projectconfig_test.go` - <!-- TODO: summarize -->
+  - `projects\`
+    - `projects.go` - <!-- TODO: summarize -->
+    - `projects_test.go` - <!-- TODO: summarize -->
+  - `repo\`
+    - `repo.go` - <!-- TODO: summarize -->
+    - `repo_test.go` - <!-- TODO: summarize -->
+  - `safetyhook\`
+    - `safetyhook.go` - <!-- TODO: summarize -->
+    - `safetyhook_test.go` - <!-- TODO: summarize -->
+  - `sessiontools\`
+    - `sessiontools.go` - <!-- TODO: summarize -->
+    - `sessiontools_test.go` - <!-- TODO: summarize -->
+  - `statemigrate\`
+    - `statemigrate.go` - <!-- TODO: summarize -->
+    - `statemigrate_test.go` - <!-- TODO: summarize -->
+  - `syncer\`
+    - `syncer.go` - <!-- TODO: summarize -->
+    - `syncer_test.go` - <!-- TODO: summarize -->
+  - `taskmenu\`
+    - `list.go` - <!-- TODO: summarize -->
+    - `menu.go` - <!-- TODO: summarize -->
+    - `paths.go` - <!-- TODO: summarize -->
+    - `taskmenu_test.go` - <!-- TODO: summarize -->
+  - `tools\`
+    - `tools.go` - <!-- TODO: summarize -->
+  - `work\`
+    - `app.go` - <!-- TODO: summarize -->
+    - `app_test.go` - <!-- TODO: summarize -->
+    - `autoflag.go` - <!-- TODO: summarize -->
+    - `breakdown.go` - <!-- TODO: summarize -->
+    - `launch.go` - <!-- TODO: summarize -->
+    - `menuopts.go` - <!-- TODO: summarize -->
+    - `mergeback.go` - <!-- TODO: summarize -->
+    - `mergeback_test.go` - <!-- TODO: summarize -->
+    - `new.go` - <!-- TODO: summarize -->
+    - `pure_test.go` - <!-- TODO: summarize -->
+    - `push.go` - <!-- TODO: summarize -->
+    - `push_test.go` - <!-- TODO: summarize -->
+  - `worktree\`
+    - `cli.go` - <!-- TODO: summarize -->
+    - `detach_unix.go` - <!-- TODO: summarize -->
+    - `detach_windows.go` - <!-- TODO: summarize -->
+    - `info.go` - <!-- TODO: summarize -->
+    - `merge.go` - <!-- TODO: summarize -->
+    - `merge_test.go` - <!-- TODO: summarize -->
+    - `provision.go` - <!-- TODO: summarize -->
+    - `worktree.go` - <!-- TODO: summarize -->
+    - `worktree_test.go` - <!-- TODO: summarize -->
+- `scripts\`
+  - `build-release.sh` - <!-- TODO: summarize -->
+  - `smoke.sh` - <!-- TODO: summarize -->
 <!-- END GENERATED FILE LISTING -->

@@ -75,14 +75,24 @@ func TestRunPasteRegistersPath(t *testing.T) {
 		t.Errorf("registry = %v %v %v", saved, errs, err)
 	}
 	l := projectconfig.Load(repo)
-	if !l.Exists || len(l.Errors) != 0 {
-		t.Fatalf("config %+v", l)
+	if l.Exists {
+		t.Error("expected no work_dot_bat.config.json to be written")
 	}
-	if _, has := l.Config["devServer"]; has {
+	regProj := saved[1]
+	if regProj.DevServer != nil {
 		t.Error(`"none" should omit devServer`)
 	}
-	if _, has := l.Config["build"]; !has {
+	if len(regProj.Build) == 0 {
 		t.Error("Enter should accept the build default")
+	}
+	if regProj.Install == nil {
+		t.Error("Enter should accept the install default")
+	}
+	if len(regProj.Tests.Light) == 0 {
+		t.Error("Enter should accept light test default")
+	}
+	if len(regProj.Tests.Heavy) == 0 {
+		t.Error("Enter should accept heavy test default")
 	}
 }
 
@@ -124,5 +134,20 @@ func TestPasteUsesExistingConfigAndOffersBootstrap(t *testing.T) {
 	}
 	if !strings.Contains(strings.Join(s.log, "\n"), "Using the existing") {
 		t.Error("expected existing-config notice")
+	}
+}
+
+func TestPasteWritesToolWrappers(t *testing.T) {
+	repo := fakeRepo(t, "r")
+	os.WriteFile(filepath.Join(repo, projectconfig.ConfigFile), []byte(`{"build":[]}`), 0o644)
+	s := &script{lines: []string{repo, "custom"}}
+	o := s.opts(filepath.Join(t.TempDir(), "projects.json"), nil)
+	o.ToolRoot = "/opt/wdb"
+	if got := RegisterPastedPath(o); got == nil {
+		t.Fatal("not registered")
+	}
+	sh, err := os.ReadFile(filepath.Join(repo, ".tools", "work"))
+	if err != nil || !strings.Contains(string(sh), "project=custom") {
+		t.Errorf("wrapper %q err %v", sh, err)
 	}
 }

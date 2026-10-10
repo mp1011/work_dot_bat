@@ -64,7 +64,7 @@ func (a App) pushWorkflow(ctx context.Context, agent string) (newAgent string, p
 		a.log("\n[ERROR] No automated test runner is configured; refusing to push without running the checks.")
 		return agent, false
 	}
-	failures := a.RunTests()
+	failures := a.RunTests("ultra_heavy")
 	for len(failures) > 0 {
 		if !a.chooseAgent(&agent) {
 			return agent, false
@@ -81,7 +81,7 @@ func (a App) pushWorkflow(ctx context.Context, agent string) (newAgent string, p
 			a.log("Committed the agent's fixes.")
 		}
 		a.log("\nRe-running automated checks...")
-		failures = a.RunTests()
+		failures = a.RunTests("ultra_heavy")
 		if len(failures) > 0 {
 			a.log("\nOptions after failing checks:")
 			a.log("  (y) Re-run agent to fix failing checks")
@@ -124,12 +124,12 @@ func (a App) pushWorkflow(ctx context.Context, agent string) (newAgent string, p
 
 // PrepareForPush is the standalone tool: the whole workflow with no menu in front of it. It exits
 // 0 only when it pushed. Human-invoked only (the safety hook stops an agent from running it).
-func PrepareForPush(root, projectName string, in io.Reader, out io.Writer, runTests func(ctx context.Context, cwd string) []string) int {
+func PrepareForPush(root, projectName string, in io.Reader, out io.Writer, runTests func(ctx context.Context, cwd string, layers ...string) []string) int {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM)
 	defer stop()
 	app := New(root, projectName, in, out)
 	if runTests != nil {
-		app.RunTests = func() []string { return runTests(ctx, root) }
+		app.RunTests = func(layers ...string) []string { return runTests(ctx, root, layers...) }
 	}
 	if _, pushed := app.pushWorkflow(ctx, ""); pushed {
 		return 0

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"work_dot_bat/internal/projects"
 )
 
 func parse(t *testing.T, s string) any {
@@ -79,6 +81,57 @@ func TestLoadAndForProject(t *testing.T) {
 	os.WriteFile(filepath.Join(tree, ConfigFile), []byte(`{nope`), 0o644)
 	if l := Load(tree); !l.Exists || len(l.Errors) != 1 || l.Config != nil {
 		t.Errorf("unparseable: %+v", l)
+	}
+}
+
+func TestForProjectPrecedenceFromProjectsJSON(t *testing.T) {
+	regDir := t.TempDir()
+	regFile := filepath.Join(regDir, "projects.json")
+	t.Setenv(projects.RegistryEnv, regFile)
+
+	repoA := t.TempDir()
+	repoB := t.TempDir()
+
+	// repoA has config in projects.json AND a legacy work_dot_bat.config.json
+	// projects.json should take precedence!
+	os.WriteFile(filepath.Join(repoA, ConfigFile), []byte(`{"projectStructureDoc":"legacy.md"}`), 0o644)
+
+	// repoB has no config in projects.json, but has a legacy work_dot_bat.config.json
+	os.WriteFile(filepath.Join(repoB, ConfigFile), []byte(`{"projectStructureDoc":"legacy_b.md"}`), 0o644)
+
+	projs := []projects.Project{
+		{
+			Name:                "projA",
+			Path:                repoA,
+			ProjectStructureDoc: "consolidated.md",
+			Build:               []projects.Command{{Cmd: "npm", Args: []string{"run", "build"}}},
+		},
+		{
+			Name: "projB",
+			Path: repoB,
+			// No config in projects.json
+		},
+	}
+	if err := projects.SaveRegistry(regFile, projs); err != nil {
+		t.Fatal(err)
+	}
+
+	// For repoA: should return consolidated.md from projects.json
+	cfgA, err := ForProject(repoA, repoA)
+	if err != nil {
+		t.Fatalf("ForProject(repoA) failed: %v", err)
+	}
+	if cfgA["projectStructureDoc"] != "consolidated.md" {
+		t.Errorf("expected consolidated.md from projects.json, got %v", cfgA["projectStructureDoc"])
+	}
+
+	// For repoB: should return legacy_b.md from work_dot_bat.config.json
+	cfgB, err := ForProject(repoB, repoB)
+	if err != nil {
+		t.Fatalf("ForProject(repoB) failed: %v", err)
+	}
+	if cfgB["projectStructureDoc"] != "legacy_b.md" {
+		t.Errorf("expected legacy_b.md from fallback config, got %v", cfgB["projectStructureDoc"])
 	}
 }
 

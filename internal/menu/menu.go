@@ -9,6 +9,7 @@ import (
 
 	"work_dot_bat/internal/projectconfig"
 	"work_dot_bat/internal/projects"
+	"work_dot_bat/internal/wrappers"
 )
 
 type IO struct {
@@ -21,6 +22,9 @@ type Options struct {
 	IO
 	Projects     []projects.Project
 	RegistryFile string
+	// ToolRoot, when set, is where the bin launchers live; a newly registered repo gets .tools
+	// wrappers pointing there.
+	ToolRoot string
 	// Bootstrap, when non-nil, is offered after registering a repo (ported in a later subtask).
 	Bootstrap func(p projects.Project) (string, error)
 }
@@ -119,11 +123,11 @@ func RegisterPastedPath(o Options) *projects.Project {
 			}
 			o.Log(`  Names must be non-empty and contain no spaces or "=".`)
 		}
-		updated, err := projects.AddProject(o.Projects, projects.Project{Name: name, Path: raw})
-		if err != nil {
+		if _, err := projects.AddProject(o.Projects, projects.Project{Name: name, Path: raw}); err != nil {
 			o.Log("  " + err.Error())
 			continue
 		}
+		newProj := projects.Project{Name: name, Path: raw}
 		existing := projectconfig.Load(raw)
 		if existing.Exists {
 			o.Log(fmt.Sprintf("  Using the existing %s", filepath.Join(raw, projectconfig.ConfigFile)))
@@ -136,18 +140,31 @@ func RegisterPastedPath(o Options) *projects.Project {
 			if !ok {
 				return nil
 			}
-			file, err := projectconfig.Write(raw, projectconfig.NewRepoConfig(commands))
-			if err != nil {
-				o.Log("  " + err.Error())
-				return nil
+			newProj.Build = commands.Build
+			newProj.Install = commands.Install
+			newProj.DevServer = commands.DevServer
+			newProj.ProjectStructureDoc = "agent_docs/02_project_structure.md"
+			newProj.ProjectStructureDirs = []string{"src"}
+			if commands.LightTest != nil {
+				newProj.Tests.Light = [][]string{append([]string{commands.LightTest.Cmd}, commands.LightTest.Args...)}
 			}
-			o.Log(fmt.Sprintf("  Wrote %s (uncommitted — review and commit it in that repo).", file))
+			if commands.HeavyTest != nil {
+				newProj.Tests.Heavy = [][]string{append([]string{commands.HeavyTest.Cmd}, commands.HeavyTest.Args...)}
+			}
 		}
+		updated, _ := projects.AddProject(o.Projects, newProj)
 		if err := projects.SaveRegistry(o.RegistryFile, updated); err != nil {
 			o.Log("  " + err.Error())
 			return nil
 		}
 		o.Log(fmt.Sprintf("Registered %q.", name))
+		if o.ToolRoot != "" {
+			if _, err := wrappers.Install(raw, o.ToolRoot, name); err != nil {
+				o.Log("  Could not write " + wrappers.Dir + " wrappers: " + err.Error())
+			} else {
+				o.Log(fmt.Sprintf("  Wrote %s wrappers (git-ignored): run %s/work from the repo.", wrappers.Dir, wrappers.Dir))
+			}
+		}
 		project := projects.FindProject(updated, name)
 		// Offered, never forced: the user can run `bootstrap` later.
 		if o.Bootstrap != nil {

@@ -6,10 +6,26 @@ import (
 	"path/filepath"
 
 	"work_dot_bat/internal/checks"
+	"work_dot_bat/internal/projects"
 	"work_dot_bat/internal/repo"
 )
 
-func checksEnv() checks.Env { return checks.Env{Out: os.Stdout, Err: os.Stderr} }
+func checksEnv() checks.Env {
+	e := checks.Env{Out: os.Stdout, Err: os.Stderr}
+	if activeEnv != nil {
+		if activeEnv.stdout != nil {
+			e.Out = activeEnv.stdout
+		}
+		if activeEnv.stderr != nil {
+			e.Err = activeEnv.stderr
+		}
+		e.RegistryFile = activeEnv.registry
+	}
+	if activeProject != nil {
+		e.Projects = []projects.Project{*activeProject}
+	}
+	return e
+}
 
 func projectRootForChecks() string {
 	root := os.Getenv(repo.ProjectRootEnv)
@@ -19,8 +35,8 @@ func projectRootForChecks() string {
 	return filepath.ToSlash(root)
 }
 
-// automatedTests runs the project's whole gate in cwd and returns the failing check names; it is
-// what the daemon, loop mode and the launcher's "run automated tests" use.
-func automatedTests(ctx context.Context, cwd string) []string {
-	return checksEnv().RunAutomatedTests(ctx, cwd, projectRootForChecks())
+// automatedTests runs the project's gate in cwd and returns the failing check names; it is
+// what the daemon, loop mode, prepare-for-push and the launcher's test options use.
+func automatedTests(ctx context.Context, cwd string, targetLayers ...string) []string {
+	return checksEnv().RunAutomatedTests(ctx, cwd, projectRootForChecks(), targetLayers...)
 }

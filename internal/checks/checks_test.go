@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"work_dot_bat/internal/projects"
 )
 
 var fixedNow = time.Date(2026, 10, 3, 12, 0, 0, 0, time.UTC)
@@ -455,5 +457,133 @@ func TestNodeBackedChecksNeedTheSyncedScript(t *testing.T) {
 	e.BuildCheckList(cfg, true)[0].Native(context.Background(), root)
 	if len(got) != 1 || got[0].Cmd != "node" || !reflect.DeepEqual(got[0].Args[1:], []string{"check", "--no-tighten"}) {
 		t.Errorf("%+v", got)
+	}
+}
+
+func TestRunAutomatedTestsWithProjectsTestsConfig(t *testing.T) {
+	root := t.TempDir()
+	put(t, root, "work_dot_bat.config.json", `{"checks":[]}`)
+
+	proj := projects.Project{
+		Name: "myproj",
+		Path: root,
+		Tests: projects.TestsConfig{
+			UltraLight: projects.CommandList{{"echo", "ultra_light"}},
+			Light:      projects.CommandList{{"echo", "light"}},
+			Heavy:      projects.CommandList{{"echo", "heavy"}},
+			UltraHeavy: projects.CommandList{{"echo", "ultra_heavy"}},
+		},
+	}
+
+	var ran []string
+	e := Env{
+		Out:      os.Stdout,
+		Err:      os.Stderr,
+		Projects: []projects.Project{proj},
+		Run: func(_ context.Context, c Check, cwd string) int {
+			ran = append(ran, c.Name)
+			return 0
+		},
+	}
+
+	// 1. Default / all tiers
+	ran = nil
+	failures := e.RunAutomatedTests(context.Background(), root, root)
+	if len(failures) != 0 {
+		t.Fatalf("expected 0 failures, got %v", failures)
+	}
+	wantAll := []string{"[ultra_light] echo ultra_light", "[light] echo light", "[heavy] echo heavy", "[ultra_heavy] echo ultra_heavy"}
+	if !reflect.DeepEqual(ran, wantAll) {
+		t.Errorf("got %v, want %v", ran, wantAll)
+	}
+
+	// 2. Target: "light" -> runs ultra_light then light
+	ran = nil
+	failures = e.RunAutomatedTests(context.Background(), root, root, "light")
+	if len(failures) != 0 {
+		t.Fatalf("expected 0 failures, got %v", failures)
+	}
+	wantLight := []string{"[ultra_light] echo ultra_light", "[light] echo light"}
+	if !reflect.DeepEqual(ran, wantLight) {
+		t.Errorf("got %v, want %v", ran, wantLight)
+	}
+
+	// 3. Target: "heavy" -> runs ultra_light, light, heavy
+	ran = nil
+	failures = e.RunAutomatedTests(context.Background(), root, root, "heavy")
+	if len(failures) != 0 {
+		t.Fatalf("expected 0 failures, got %v", failures)
+	}
+	wantHeavy := []string{"[ultra_light] echo ultra_light", "[light] echo light", "[heavy] echo heavy"}
+	if !reflect.DeepEqual(ran, wantHeavy) {
+		t.Errorf("got %v, want %v", ran, wantHeavy)
+	}
+
+	// 4. Target: "ultra_heavy" -> runs all 4
+	ran = nil
+	failures = e.RunAutomatedTests(context.Background(), root, root, "ultra_heavy")
+	if len(failures) != 0 {
+		t.Fatalf("expected 0 failures, got %v", failures)
+	}
+	if !reflect.DeepEqual(ran, wantAll) {
+		t.Errorf("got %v, want %v", ran, wantAll)
+	}
+}
+
+func TestRunAutomatedTestsFallbackToWorkDotBatConfig(t *testing.T) {
+	root := t.TempDir()
+	put(t, root, "work_dot_bat.config.json", `{
+		"checks":[],
+		"lightTest": {"cmd": "go", "args": ["test", "./..."]},
+		"heavyTest": {"cmd": "go", "args": ["test", "-tags=e2e", "./..."]}
+	}`)
+
+	// Project has no TestsConfig configured
+	proj := projects.Project{
+		Name: "legacyproj",
+		Path: root,
+	}
+
+	var ran []string
+	e := Env{
+		Out:      os.Stdout,
+		Err:      os.Stderr,
+		Projects: []projects.Project{proj},
+		Run: func(_ context.Context, c Check, cwd string) int {
+			ran = append(ran, c.Name)
+			return 0
+		},
+	}
+
+	// 1. Default (no layer specified) -> runs both lightTest and heavyTest
+	ran = nil
+	failures := e.RunAutomatedTests(context.Background(), root, root)
+	if len(failures) != 0 {
+		t.Fatalf("expected 0 failures, got %v", failures)
+	}
+	wantLegacyAll := []string{"Light tests: go test ./...", "Heavy tests: go test -tags=e2e ./..."}
+	if !reflect.DeepEqual(ran, wantLegacyAll) {
+		t.Errorf("got %v, want %v", ran, wantLegacyAll)
+	}
+
+	// 2. Target: "light" -> runs only lightTest
+	ran = nil
+	failures = e.RunAutomatedTests(context.Background(), root, root, "light")
+	if len(failures) != 0 {
+		t.Fatalf("expected 0 failures, got %v", failures)
+	}
+	wantLegacyLight := []string{"Light tests: go test ./..."}
+	if !reflect.DeepEqual(ran, wantLegacyLight) {
+		t.Errorf("got %v, want %v", ran, wantLegacyLight)
+	}
+
+	// 3. Target: "heavy" -> runs lightTest and heavyTest
+	ran = nil
+	failures = e.RunAutomatedTests(context.Background(), root, root, "heavy")
+	if len(failures) != 0 {
+		t.Fatalf("expected 0 failures, got %v", failures)
+	}
+	if !reflect.DeepEqual(ran, wantLegacyAll) {
+		t.Errorf("got %v, want %v", ran, wantLegacyAll)
 	}
 }

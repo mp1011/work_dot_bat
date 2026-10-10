@@ -10,15 +10,235 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
+	"sort"
 	"strings"
 )
 
 // RegistryEnv overrides the registry file location.
 const RegistryEnv = "WORK_DOT_BAT_REGISTRY"
 
+// CommandList represents one or more commands for a test tier.
+// In JSON, it can be expressed as a single command array (e.g. ["go", "test", "./..."])
+// or as an array of command arrays (e.g. [["npm", "run", "lint"], ["npx", "tsc", "--noEmit"]]).
+type CommandList [][]string
+
+func (c CommandList) MarshalJSON() ([]byte, error) {
+	if len(c) == 0 {
+		return []byte("[]"), nil
+	}
+	if len(c) == 1 {
+		return json.Marshal([]string(c[0]))
+	}
+	return json.Marshal([][]string(c))
+}
+
+func (c *CommandList) UnmarshalJSON(b []byte) error {
+	var multi [][]string
+	if err := json.Unmarshal(b, &multi); err == nil {
+		*c = multi
+		return nil
+	}
+	var single []string
+	if err := json.Unmarshal(b, &single); err == nil {
+		if len(single) > 0 {
+			*c = [][]string{single}
+		} else {
+			*c = nil
+		}
+		return nil
+	}
+	return errors.New("expected string array or array of command arrays")
+}
+
+type TestsConfig struct {
+	UltraLight CommandList `json:"ultra_light,omitempty"`
+	Light      CommandList `json:"light,omitempty"`
+	Heavy      CommandList `json:"heavy,omitempty"`
+	UltraHeavy CommandList `json:"ultra_heavy,omitempty"`
+}
+
+func (t TestsConfig) IsEmpty() bool {
+	return len(t.UltraLight) == 0 && len(t.Light) == 0 && len(t.Heavy) == 0 && len(t.UltraHeavy) == 0
+}
+
+// ToolCheckIDs are the tool-owned check ids, in the order they run (mirrors the vendored run-checks.mjs).
+var ToolCheckIDs = []string{
+	"plan-drift", "monolith", "duplication", "structural-duplication",
+	"source-assertions", "skills", "audit",
+}
+
+type Command struct {
+	Cmd   string            `json:"cmd"`
+	Args  []string          `json:"args"`
+	Env   map[string]string `json:"env,omitempty"`
+	Shell *bool             `json:"shell,omitempty"`
+}
+
+func (c Command) MarshalJSON() ([]byte, error) {
+	type rawCommand Command
+	return json.Marshal(rawCommand(c))
+}
+
+func (c *Command) UnmarshalJSON(b []byte) error {
+	type rawCommand Command
+	var raw rawCommand
+	if err := json.Unmarshal(b, &raw); err == nil && raw.Cmd != "" {
+		*c = Command(raw)
+		return nil
+	}
+	var arr []string
+	if err := json.Unmarshal(b, &arr); err == nil && len(arr) > 0 {
+		*c = Command{Cmd: arr[0], Args: arr[1:]}
+		return nil
+	}
+	return errors.New("expected {cmd, args} object or string array")
+}
+
+func FormatCommand(c Command) string {
+	return strings.Join(append([]string{c.Cmd}, c.Args...), " ")
+}
+
+func ParseCommandLine(line string) *Command {
+	parts := strings.Fields(line)
+	if len(parts) == 0 {
+		return nil
+	}
+	return &Command{Cmd: parts[0], Args: append([]string{}, parts[1:]...)}
+}
+
+type ExtraCheck struct {
+	Name    string  `json:"name"`
+	Command Command `json:"command"`
+}
+
 type Project struct {
-	Name string `json:"name"`
-	Path string `json:"path"`
+	Name                 string         `json:"name"`
+	Path                 string         `json:"path"`
+	Tests                TestsConfig    `json:"tests,omitempty"`
+	Build                []Command      `json:"build,omitempty"`
+	Install              *Command       `json:"install,omitempty"`
+	DevServer            *Command       `json:"devServer,omitempty"`
+	Checks               []string       `json:"checks,omitempty"`
+	ExtraChecks          []ExtraCheck   `json:"extraChecks,omitempty"`
+	WorktreeCopyFiles    []string       `json:"worktreeCopyFiles,omitempty"`
+	ProjectStructureDoc  string         `json:"projectStructureDoc,omitempty"`
+	ProjectStructureDirs []string       `json:"projectStructureDirs,omitempty"`
+	Agents               map[string]any `json:"agents,omitempty"`
+	PlanTemplate         string         `json:"planTemplate,omitempty"`
+	Instructions         map[string]any `json:"instructions,omitempty"`
+}
+
+type rawProject struct {
+	Name                 string          `json:"name"`
+	Path                 string          `json:"path"`
+	Tests                *TestsConfig    `json:"tests,omitempty"`
+	Build                []Command       `json:"build,omitempty"`
+	Install              *Command        `json:"install,omitempty"`
+	DevServer            *Command        `json:"devServer,omitempty"`
+	Checks               []string        `json:"checks,omitempty"`
+	ExtraChecks          []ExtraCheck    `json:"extraChecks,omitempty"`
+	WorktreeCopyFiles    []string        `json:"worktreeCopyFiles,omitempty"`
+	ProjectStructureDoc  string          `json:"projectStructureDoc,omitempty"`
+	ProjectStructureDirs []string        `json:"projectStructureDirs,omitempty"`
+	Agents               map[string]any  `json:"agents,omitempty"`
+	PlanTemplate         string          `json:"planTemplate,omitempty"`
+	Instructions         map[string]any  `json:"instructions,omitempty"`
+}
+
+func (p Project) MarshalJSON() ([]byte, error) {
+	raw := rawProject{
+		Name:                 p.Name,
+		Path:                 p.Path,
+		Build:                p.Build,
+		Install:              p.Install,
+		DevServer:            p.DevServer,
+		Checks:               p.Checks,
+		ExtraChecks:          p.ExtraChecks,
+		WorktreeCopyFiles:    p.WorktreeCopyFiles,
+		ProjectStructureDoc:  p.ProjectStructureDoc,
+		ProjectStructureDirs: p.ProjectStructureDirs,
+		Agents:               p.Agents,
+		PlanTemplate:         p.PlanTemplate,
+		Instructions:         p.Instructions,
+	}
+	if !p.Tests.IsEmpty() {
+		raw.Tests = &p.Tests
+	}
+	return json.Marshal(raw)
+}
+
+func (p *Project) UnmarshalJSON(b []byte) error {
+	var raw rawProject
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return err
+	}
+	p.Name = raw.Name
+	p.Path = raw.Path
+	if raw.Tests != nil {
+		p.Tests = *raw.Tests
+	} else {
+		p.Tests = TestsConfig{}
+	}
+	p.Build = raw.Build
+	p.Install = raw.Install
+	p.DevServer = raw.DevServer
+	p.Checks = raw.Checks
+	p.ExtraChecks = raw.ExtraChecks
+	p.WorktreeCopyFiles = raw.WorktreeCopyFiles
+	p.ProjectStructureDoc = raw.ProjectStructureDoc
+	p.ProjectStructureDirs = raw.ProjectStructureDirs
+	p.Agents = raw.Agents
+	p.PlanTemplate = raw.PlanTemplate
+	p.Instructions = raw.Instructions
+	return nil
+}
+
+func (p Project) HasConfig() bool {
+	return !p.Tests.IsEmpty() ||
+		len(p.Build) > 0 ||
+		p.Install != nil ||
+		p.DevServer != nil ||
+		len(p.Checks) > 0 ||
+		len(p.ExtraChecks) > 0 ||
+		len(p.WorktreeCopyFiles) > 0 ||
+		p.ProjectStructureDoc != "" ||
+		len(p.ProjectStructureDirs) > 0 ||
+		len(p.Agents) > 0 ||
+		p.PlanTemplate != "" ||
+		len(p.Instructions) > 0
+}
+
+func (p Project) ToConfigMap() map[string]any {
+	b, _ := json.Marshal(p)
+	var m map[string]any
+	_ = json.Unmarshal(b, &m)
+	delete(m, "name")
+	delete(m, "path")
+	if m == nil {
+		m = make(map[string]any)
+	}
+	if _, has := m["lightTest"]; !has && len(p.Tests.Light) > 0 && len(p.Tests.Light[0]) > 0 {
+		var args []any
+		for _, a := range p.Tests.Light[0][1:] {
+			args = append(args, a)
+		}
+		m["lightTest"] = map[string]any{
+			"cmd":  p.Tests.Light[0][0],
+			"args": args,
+		}
+	}
+	if _, has := m["heavyTest"]; !has && len(p.Tests.Heavy) > 0 && len(p.Tests.Heavy[0]) > 0 {
+		var args []any
+		for _, a := range p.Tests.Heavy[0][1:] {
+			args = append(args, a)
+		}
+		m["heavyTest"] = map[string]any{
+			"cmd":  p.Tests.Heavy[0][0],
+			"args": args,
+		}
+	}
+	return m
 }
 
 // ToolRoot is the first of the executable's directory and the working directory that holds a
@@ -81,11 +301,25 @@ func DefaultProjectName(repoPath string) string {
 	return trimmed[i+1:]
 }
 
-func samePath(a, b string) bool {
+func SamePath(a, b string) bool {
 	norm := func(p string) string {
 		return strings.ToLower(strings.TrimRight(strings.ReplaceAll(p, `\`, "/"), "/"))
 	}
 	return norm(a) == norm(b)
+}
+
+func samePath(a, b string) bool {
+	return SamePath(a, b)
+}
+
+// FindProjectByPath finds a project matching the given directory path.
+func FindProjectByPath(projects []Project, path string) *Project {
+	for i := range projects {
+		if samePath(projects[i].Path, path) {
+			return &projects[i]
+		}
+	}
+	return nil
 }
 
 // ValidateRegistry returns the valid projects and one error per dropped entry, each naming
@@ -121,10 +355,297 @@ func ValidateRegistry(data any) (projects []Project, errs []string) {
 			errs = append(errs, label+`: duplicate "name"`)
 			continue
 		}
+
+		var testsConfig TestsConfig
+		if rawTests, hasTests := entry["tests"]; hasTests && rawTests != nil {
+			testsObj, isTestsObj := rawTests.(map[string]any)
+			if !isTestsObj {
+				errs = append(errs, label+`: "tests" must be an object`)
+				continue
+			}
+
+			var testErrs []string
+			knownTiers := map[string]*CommandList{
+				"ultra_light": &testsConfig.UltraLight,
+				"light":       &testsConfig.Light,
+				"heavy":       &testsConfig.Heavy,
+				"ultra_heavy": &testsConfig.UltraHeavy,
+			}
+
+			tierKeys := []string{"ultra_light", "light", "heavy", "ultra_heavy"}
+			for _, key := range tierKeys {
+				if rawLayer, exists := testsObj[key]; exists && rawLayer != nil {
+					arr, isArr := rawLayer.([]any)
+					if !isArr {
+						testErrs = append(testErrs, label+fmt.Sprintf(`: "tests.%s" must be an array of strings`, key))
+						continue
+					}
+					if len(arr) == 0 {
+						testErrs = append(testErrs, label+fmt.Sprintf(`: "tests.%s" command name must not be empty`, key))
+						continue
+					}
+
+					var cmdList CommandList
+					if _, isNested := arr[0].([]any); isNested {
+						nestedErr := false
+						for _, item := range arr {
+							subArr, ok := item.([]any)
+							if !ok {
+								testErrs = append(testErrs, label+fmt.Sprintf(`: "tests.%s" must be an array of strings`, key))
+								nestedErr = true
+								break
+							}
+							if len(subArr) == 0 {
+								testErrs = append(testErrs, label+fmt.Sprintf(`: "tests.%s" command name must not be empty`, key))
+								nestedErr = true
+								break
+							}
+							var cmd []string
+							for _, elem := range subArr {
+								s, isStr := elem.(string)
+								if !isStr {
+									testErrs = append(testErrs, label+fmt.Sprintf(`: "tests.%s" must be an array of strings`, key))
+									nestedErr = true
+									break
+								}
+								cmd = append(cmd, s)
+							}
+							if nestedErr {
+								break
+							}
+							if strings.TrimSpace(cmd[0]) == "" {
+								testErrs = append(testErrs, label+fmt.Sprintf(`: "tests.%s" command name must not be empty`, key))
+								nestedErr = true
+								break
+							}
+							cmdList = append(cmdList, cmd)
+						}
+						if nestedErr {
+							continue
+						}
+					} else {
+						var cmd []string
+						badElem := false
+						for _, elem := range arr {
+							s, isStr := elem.(string)
+							if !isStr {
+								testErrs = append(testErrs, label+fmt.Sprintf(`: "tests.%s" must be an array of strings`, key))
+								badElem = true
+								break
+							}
+							cmd = append(cmd, s)
+						}
+						if badElem {
+							continue
+						}
+						if strings.TrimSpace(cmd[0]) == "" {
+							testErrs = append(testErrs, label+fmt.Sprintf(`: "tests.%s" command name must not be empty`, key))
+							continue
+						}
+						cmdList = CommandList{cmd}
+					}
+					*(knownTiers[key]) = cmdList
+				}
+			}
+
+			var unknownKeys []string
+			for k := range testsObj {
+				if _, ok := knownTiers[k]; !ok {
+					unknownKeys = append(unknownKeys, k)
+				}
+			}
+			sort.Strings(unknownKeys)
+			for _, k := range unknownKeys {
+				testErrs = append(testErrs, label+fmt.Sprintf(`: "tests.%s": unknown test layer`, k))
+			}
+
+			if len(testErrs) > 0 {
+				errs = append(errs, testErrs...)
+				continue
+			}
+		}
+
+		var configErrs []string
+
+		// build
+		if rawBuild, exists := entry["build"]; exists && rawBuild != nil {
+			arr, ok := rawBuild.([]any)
+			valid := ok
+			if ok {
+				for _, item := range arr {
+					if !isCommandObj(item) {
+						valid = false
+						break
+					}
+				}
+			}
+			if !valid {
+				configErrs = append(configErrs, label+`: "build" must be an array of commands`)
+			}
+		}
+
+		// install
+		if rawInstall, exists := entry["install"]; exists && rawInstall != nil {
+			if !isCommandObj(rawInstall) {
+				configErrs = append(configErrs, label+`: "install" must be a command`)
+			}
+		}
+
+		// devServer
+		if rawDevServer, exists := entry["devServer"]; exists && rawDevServer != nil {
+			if !isCommandObj(rawDevServer) {
+				configErrs = append(configErrs, label+`: "devServer" must be a command or null`)
+			}
+		}
+
+		// checks
+		if rawChecks, exists := entry["checks"]; exists && rawChecks != nil {
+			arr, ok := rawChecks.([]any)
+			if !ok {
+				configErrs = append(configErrs, label+`: "checks" must be an array of check ids`)
+			} else {
+				for _, item := range arr {
+					s, isStr := item.(string)
+					if !isStr || !slices.Contains(ToolCheckIDs, s) {
+						configErrs = append(configErrs, label+fmt.Sprintf(`: "checks": unknown check id %q`, item))
+					}
+				}
+			}
+		}
+
+		// extraChecks
+		if rawExtra, exists := entry["extraChecks"]; exists && rawExtra != nil {
+			arr, ok := rawExtra.([]any)
+			valid := ok
+			if ok {
+				for _, item := range arr {
+					m, isMap := item.(map[string]any)
+					if !isMap {
+						valid = false
+						break
+					}
+					n, isStr := m["name"].(string)
+					if !isStr || strings.TrimSpace(n) == "" || !isCommandObj(m["command"]) {
+						valid = false
+						break
+					}
+				}
+			}
+			if !valid {
+				configErrs = append(configErrs, label+`: "extraChecks" must be an array of { name, command }`)
+			}
+		}
+
+		// worktreeCopyFiles
+		if rawFiles, exists := entry["worktreeCopyFiles"]; exists && rawFiles != nil {
+			if !isStringList(rawFiles) {
+				configErrs = append(configErrs, label+`: "worktreeCopyFiles" must be an array of strings`)
+			}
+		}
+
+		// projectStructureDoc
+		if rawDoc, exists := entry["projectStructureDoc"]; exists && rawDoc != nil {
+			s, ok := rawDoc.(string)
+			if !ok || strings.TrimSpace(s) == "" {
+				configErrs = append(configErrs, label+`: "projectStructureDoc" must be a non-empty string`)
+			}
+		}
+
+		// projectStructureDirs
+		if rawDirs, exists := entry["projectStructureDirs"]; exists && rawDirs != nil {
+			if !isStringList(rawDirs) {
+				configErrs = append(configErrs, label+`: "projectStructureDirs" must be an array of strings`)
+			}
+		}
+
+		// agents
+		if rawAgents, exists := entry["agents"]; exists && rawAgents != nil {
+			if _, ok := rawAgents.(map[string]any); !ok {
+				configErrs = append(configErrs, label+`: "agents" must be an object`)
+			}
+		}
+
+		// planTemplate
+		if rawTmpl, exists := entry["planTemplate"]; exists && rawTmpl != nil {
+			s, ok := rawTmpl.(string)
+			if !ok || strings.TrimSpace(s) == "" {
+				configErrs = append(configErrs, label+`: "planTemplate" must be a non-empty string`)
+			}
+		}
+
+		// instructions
+		if rawInstr, exists := entry["instructions"]; exists && rawInstr != nil {
+			if _, ok := rawInstr.(map[string]any); !ok {
+				configErrs = append(configErrs, label+`: "instructions" must be an object`)
+			}
+		}
+
+		if len(configErrs) > 0 {
+			errs = append(errs, configErrs...)
+			continue
+		}
+
+		var proj Project
+		b, _ := json.Marshal(entry)
+		_ = json.Unmarshal(b, &proj)
+		proj.Name = name
+		proj.Path = p
+		proj.Tests = testsConfig
 		seen[name] = true
-		projects = append(projects, Project{Name: name, Path: p})
+		projects = append(projects, proj)
 	}
 	return projects, errs
+}
+
+func isCommandObj(v any) bool {
+	if m, ok := v.(map[string]any); ok {
+		s, sok := m["cmd"].(string)
+		if !sok || strings.TrimSpace(s) == "" {
+			return false
+		}
+		args, aok := m["args"].([]any)
+		if !aok {
+			return false
+		}
+		for _, a := range args {
+			if _, ok := a.(string); !ok {
+				return false
+			}
+		}
+		if env, present := m["env"]; present {
+			if _, ok := env.(map[string]any); !ok {
+				return false
+			}
+		}
+		if sh, present := m["shell"]; present {
+			if _, ok := sh.(bool); !ok {
+				return false
+			}
+		}
+		return true
+	}
+	if arr, ok := v.([]any); ok && len(arr) > 0 {
+		for _, item := range arr {
+			if _, ok := item.(string); !ok {
+				return false
+			}
+		}
+		return strings.TrimSpace(arr[0].(string)) != ""
+	}
+	return false
+}
+
+func isStringList(v any) bool {
+	list, ok := v.([]any)
+	if !ok {
+		return false
+	}
+	for _, e := range list {
+		if _, ok := e.(string); !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // LoadRegistry: a missing file is an empty registry. Unparseable JSON returns an error naming the file.

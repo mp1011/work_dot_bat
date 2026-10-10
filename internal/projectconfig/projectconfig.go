@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"work_dot_bat/internal/projects"
 )
 
 const ConfigFile = "work_dot_bat.config.json"
@@ -20,17 +22,10 @@ const DefaultDaemonDoc = "agent_docs/instructions/high_trust/do-work-yolo.md"
 var CommandFields = []string{"build", "lightTest", "heavyTest", "install", "devServer"}
 
 // ToolCheckIDs are the tool-owned check ids, in the order they run (mirrors the vendored run-checks.mjs).
-var ToolCheckIDs = []string{
-	"plan-drift", "monolith", "duplication", "structural-duplication",
-	"source-assertions", "skills", "audit",
-}
+var ToolCheckIDs = projects.ToolCheckIDs
 
-type Command struct {
-	Cmd   string            `json:"cmd"`
-	Args  []string          `json:"args"`
-	Env   map[string]string `json:"env,omitempty"`
-	Shell *bool             `json:"shell,omitempty"`
-}
+type Command = projects.Command
+type ExtraCheck = projects.ExtraCheck
 
 // Config is the commands subset written for a newly registered repo.
 type Config struct {
@@ -231,9 +226,23 @@ func NewRepoConfig(commands Config) Config {
 	return commands
 }
 
-// ForProject reads the selected project's config. A worktree's checkout only has the file
-// once committed, so treeRoot falls back to projectRoot. Errors name where it looked.
+// ForProject reads the selected project's config. It queries projects.json first for the
+// project's configuration, falling back to <repo>/work_dot_bat.config.json if absent or not yet migrated.
+// A worktree's checkout falls back to projectRoot. Errors name where it looked.
 func ForProject(treeRoot, projectRoot string) (map[string]any, error) {
+	regFile := projects.DefaultRegistryFile()
+	projs, _, err := projects.LoadRegistry(regFile)
+	if err == nil && len(projs) > 0 {
+		for _, root := range []string{projectRoot, treeRoot} {
+			if root == "" {
+				continue
+			}
+			if matched := projects.FindProjectByPath(projs, root); matched != nil && matched.HasConfig() {
+				return matched.ToConfigMap(), nil
+			}
+		}
+	}
+
 	roots := []string{treeRoot}
 	if treeRoot != projectRoot {
 		roots = append(roots, projectRoot)

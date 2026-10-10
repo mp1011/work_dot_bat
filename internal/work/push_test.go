@@ -14,7 +14,7 @@ func pushRig(t *testing.T, inputs ...string) (*fixture, *[][]string, *int) {
 	f := newFixture(t, inputs...)
 	var gates [][]string
 	n := 0
-	f.app.RunTests = func() []string {
+	f.app.RunTests = func(layers ...string) []string {
 		defer func() { n++ }()
 		if n < len(gates) {
 			return gates[n]
@@ -167,5 +167,21 @@ func TestMenuPushUsesTheWorkflow(t *testing.T) {
 	f.app.Run(context.Background())
 	if got := gitCalls(f); len(got) != 1 || got[0] != "push" {
 		t.Errorf("%v\n%s", got, f.out.String())
+	}
+}
+
+func TestPushEnforcesUltraHeavyTier(t *testing.T) {
+	f := newFixture(t, "c", "n")
+	var requestedLayers []string
+	f.app.RunTests = func(layers ...string) []string {
+		requestedLayers = append(requestedLayers, layers...)
+		return nil
+	}
+	agent, pushed := f.app.pushWorkflow(context.Background(), "")
+	if !pushed || agent != "c" {
+		t.Fatalf("%v %v\n%s", agent, pushed, f.out.String())
+	}
+	if len(requestedLayers) == 0 || requestedLayers[0] != "ultra_heavy" {
+		t.Errorf("expected pushWorkflow to request ultra_heavy tier, got %v", requestedLayers)
 	}
 }

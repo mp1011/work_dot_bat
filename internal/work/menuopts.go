@@ -12,7 +12,11 @@ type Option struct{ Key, Label string }
 // the task's status, whether its branch has a worktree, and whether it has subtasks.
 func TaskMenuOptions(task *planstatus.Entry, hasWorktree, isParent bool) (actions, navigational []Option) {
 	if task == nil {
-		actions = []Option{{"c", "Commit changes"}, {"p", "Push changes"}, {"t", "Run automated tests"}}
+		actions = []Option{
+			{"c", "Commit changes"},
+			{"p", "Push changes"},
+			{"t", "Run automated tests"},
+		}
 		return actions, []Option{{"s", "Select task"}, {"q", "Quit"}}
 	}
 	label := "Work on Task"
@@ -39,3 +43,15 @@ func TaskMenuOptions(task *planstatus.Entry, hasWorktree, isParent bool) (action
 	}
 	return actions, []Option{{"s", "Start new task"}, {"q", "Quit"}}
 }
+
+// TestMenuOptions returns the second-tier menu options for choosing which test level to run.
+func TestMenuOptions() (actions, navigational []Option) {
+	actions = []Option{
+		{"u", "Run ultra-light tests"},
+		{"1", "Run light tests"},
+		{"2", "Run heavy tests"},
+		{"3", "Run full pre-push test gate"},
+	}
+	return actions, []Option{{"b", "Back"}}
+}
+

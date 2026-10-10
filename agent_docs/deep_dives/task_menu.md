@@ -75,7 +75,7 @@ The ledger is now read and written with key order preserved (`agentsession.Row`,
 # Mechanical checks and the pre-push workflow (`internal/checks`, `internal/work/push.go`, `internal/proc`)
 
 - `checks` ports monolith (ratchet + breakup-plan stubs), duplication (8-line windows, deterministic pair order), skills, audit, the project-structure reconciler (parse-and-preserve, with Node's test cases ported) and `run-checks` (ordering, phase skipping, summary text). Tool-owned checks run in-process; the two TypeScript-AST checks run the target's synced Node scripts (decision recorded in `plans/initial_port/08_checks_and_prepare_for_push.md`).
-- `Env.RunAutomatedTests(ctx, cwd, projectRoot)` is the entry the daemon, loop mode, the launcher's "run tests" and the push workflow share; it checks a worktree in the worktree and returns failing check names.
+- `Env.RunAutomatedTests(ctx, cwd, projectRoot, targetLayers...)` is the entry the daemon, loop mode, the launcher's test options and the push workflow share; it checks a worktree in the worktree, reads layer commands from `projects.json` (falling back to `work_dot_bat.config.json`), and returns failing check names.
 - `internal/proc` is the shared "run unattended" runner extracted from the daemon: stdin closed, timeout, heartbeat, process-tree kill (own process group + SIGTERM→SIGKILL on Unix, `taskkill /T /F` on Windows).
 - `work.App.pushWorkflow` is `doPushWorkflow`: gate → (interactive agent fix → commit if dirty → re-gate → ask) → agent prepare-for-push → ask → `git push`. A failed gate never reaches a push; no gate configured refuses. The standalone `prepare_for_push` tool exits 0 only when it pushed, and the safety hook keeps agents from running it.
 

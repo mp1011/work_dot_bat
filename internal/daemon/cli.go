@@ -25,7 +25,7 @@ type Config struct {
 	In          io.Reader
 	Out         io.Writer
 	// RunTests runs the project's automated checks in cwd, returning the failing check names.
-	RunTests func(ctx context.Context, cwd string) []string
+	RunTests func(ctx context.Context, cwd string, layers ...string) []string
 	// OpenEditor opens a folder in the user's editor; nil = never.
 	OpenEditor func(path string)
 }

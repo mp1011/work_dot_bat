@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -35,9 +36,10 @@ type rig struct {
 	prompt []string
 	// agent decides the reply: phase ("work"/"assess"/"assess-parent"), attempt, wt path.
 	agent func(phase string, attempt int, wt string) StepRun
-	tests [][]string
-	ntest int
-	slept []time.Duration
+	tests      [][]string
+	ntest      int
+	testLayers []string
+	slept      []time.Duration
 }
 
 func newRig(t *testing.T) *rig {
@@ -71,8 +73,11 @@ func newRig(t *testing.T) *rig {
 			g.prompt = append(g.prompt, prompt)
 			return g.agent(m.Phase, m.Attempt, m.Worktree)
 		},
-		RunTests: func(context.Context, string) []string {
+		RunTests: func(_ context.Context, _ string, layers ...string) []string {
 			defer func() { g.ntest++ }()
+			if len(layers) > 0 {
+				g.testLayers = append(g.testLayers, layers[0])
+			}
 			if g.ntest < len(g.tests) {
 				return g.tests[g.ntest]
 			}
@@ -551,5 +556,45 @@ func TestStatusReportsAutoPlansReadOnly(t *testing.T) {
 	}
 	if gitIn(t, g.root, "status", "--porcelain") != before {
 		t.Error("auto_status must not change anything")
+	}
+}
+
+func TestDaemonRunsLightAfterIterationAndHeavyBeforeReadyForReview(t *testing.T) {
+	g := newRig(t)
+	g.agent = func(phase string, attempt int, wt string) StepRun {
+		if phase == "work" {
+			writeFile(t, wt, "code.txt", "hello")
+			return StepRun{Output: "AUTO_OUTCOME: done"}
+		}
+		return StepRun{Output: "ASSESSMENT: complete"}
+	}
+	res := g.run()
+	if res.Status != "ready-for-review" {
+		t.Fatalf("expected ready-for-review, got %+v", res)
+	}
+	wantLayers := []string{"light", "heavy"}
+	if !reflect.DeepEqual(g.testLayers, wantLayers) {
+		t.Errorf("got test layers %v, want %v", g.testLayers, wantLayers)
+	}
+}
+
+func TestDaemonFailingLightTestPreventsProceeding(t *testing.T) {
+	g := newRig(t)
+	// Light tests fail for all 3 attempts
+	g.tests = [][]string{{"lint"}, {"lint"}, {"lint"}}
+	g.agent = func(phase string, attempt int, wt string) StepRun {
+		writeFile(t, wt, "code.txt", "hello")
+		return StepRun{Output: "AUTO_OUTCOME: done"}
+	}
+	res := g.run()
+	if res.Status != "blocked" {
+		t.Fatalf("expected blocked, got %+v", res)
+	}
+	// Verify that heavy was never called, only light
+	for _, l := range g.testLayers {
+		if l != "light" {
+			t.Errorf("expected only light test executions on failure, got %v", g.testLayers)
+			break
+		}
 	}
 }

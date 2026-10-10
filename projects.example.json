@@ -1,5 +1,38 @@
 {
   "projects": [
-    { "name": "music_mountain", "path": "C:\\Users\\you\\source\\repos\\music_mountain" }
+    {
+      "name": "music_mountain",
+      "path": "C:\\Users\\you\\source\\repos\\music_mountain",
+      "build": [
+        {
+          "cmd": "npm",
+          "args": ["run", "lint"]
+        },
+        {
+          "cmd": "npx",
+          "args": ["tsc", "--noEmit"]
+        }
+      ],
+      "install": {
+        "cmd": "npm",
+        "args": ["install"]
+      },
+      "devServer": {
+        "cmd": "npm",
+        "args": ["run", "dev"]
+      },
+      "tests": {
+        "ultra_light": [
+          ["npm", "run", "lint"],
+          ["npx", "tsc", "--noEmit"]
+        ],
+        "light": ["npm", "test", "--", "--run"],
+        "heavy": ["npm", "run", "test:e2e"],
+        "ultra_heavy": ["npm", "run", "check:release"]
+      },
+      "worktreeCopyFiles": [".env.local"],
+      "projectStructureDoc": "agent_docs/02_project_structure.md",
+      "projectStructureDirs": ["src"]
+    }
   ]
 }
