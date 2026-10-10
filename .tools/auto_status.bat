@@ -1,3 +1,3 @@
 @echo off
-call "%~dp0work_dot_bat.bat" auto_status %*
+call "%~dp0work.bat" --run auto_status %*
 exit /b %errorlevel%

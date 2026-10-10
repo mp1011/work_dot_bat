@@ -12,11 +12,11 @@ set -euo pipefail
 bin="${WORK_DOT_BAT_BIN:-work_dot_bat}"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if ! command -v "$bin" >/dev/null 2>&1; then
-  if [ -f "$here/work_dot_bat" ]; then
-    bin="$here/work_dot_bat"
+  if [ -f "$here/work" ]; then
+    bin="$here/work"; runflag="--run"
   else
     echo "work_dot_bat binary not found: put it on PATH or set WORK_DOT_BAT_BIN." >&2
     exit 127
   fi
 fi
-exec "$bin" worktree-info "$@"
+exec "$bin" ${runflag:-} worktree-info "$@"

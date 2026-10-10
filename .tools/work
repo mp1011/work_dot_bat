@@ -1,2 +1,29 @@
 #!/usr/bin/env bash
-exec "$(dirname "${BASH_SOURCE[0]}")/work_dot_bat" work "$@"
+# POSIX launcher: runs the work_dot_bat binary. `work [args]` runs the `work` tool;
+# `work --run <subcommand> [args]` runs any other subcommand (auto_daemon, plan-status, ...).
+# Binary lookup: $WORK_DOT_BAT_BIN, then `work_dot_bat` on PATH, then a release build in ../dist.
+set -euo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -n "${WORK_DOT_BAT_BIN:-}" ]; then
+  bin="$WORK_DOT_BAT_BIN"
+elif command -v work_dot_bat >/dev/null 2>&1; then
+  bin="work_dot_bat"
+else
+  os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+  case "$os" in mingw* | msys* | cygwin*) os=windows ;; esac
+  arch="$(uname -m)"
+  case "$arch" in x86_64 | amd64) arch=amd64 ;; aarch64 | arm64) arch=arm64 ;; esac
+  ext=""
+  [ "$os" = "windows" ] && ext=".exe"
+  bin="$here/../dist/work_dot_bat_${os}_${arch}${ext}"
+  if [ ! -x "$bin" ]; then
+    echo "work_dot_bat binary not found. Put it on PATH, set WORK_DOT_BAT_BIN, or run .tools/build-release.sh." >&2
+    exit 1
+  fi
+fi
+if [ "${1:-}" = "--run" ]; then
+  shift
+  exec "$bin" "$@"
+fi
+exec "$bin" work "$@"

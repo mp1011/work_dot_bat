@@ -62,7 +62,7 @@ Runs the full suite of mechanical checks, project structure validations, builds,
 ./.tools/run-checks.sh
 
 # Or via work_dot_bat runner
-.\.tools\work_dot_bat.bat run-checks
+.\.tools\work.bat --run run-checks
 ```
 
 ---
@@ -149,22 +149,22 @@ Provisions an isolated Git worktree for a specific plan:
 Pass any subcommand and options directly to the underlying `work_dot_bat` executable:
 - **Windows**:
   ```cmd
-  .\.tools\work_dot_bat.bat <subcommand> [args]
+  .\.tools\work.bat --run <subcommand> [args]
   ```
 - **POSIX / Bash**:
   ```bash
-  ./.tools/work_dot_bat <subcommand> [args]
+  ./.tools/work --run <subcommand> [args]
   ```
 
 #### Install Repo-Local Tool Wrappers (`install-wrappers`)
 Writes/updates local `.tools` launchers (`work.bat`, `auto_daemon.bat`, `prepare_for_push.bat`, and bash scripts) directly inside target project repositories. This allows launching workflows directly from a project's repository (e.g. `.\.tools\work.bat`):
 - **Windows**:
   ```cmd
-  .\.tools\work_dot_bat.bat install-wrappers [project=<name>]
+  .\.tools\work.bat --run install-wrappers [project=<name>]
   ```
 - **POSIX / Bash**:
   ```bash
-  ./.tools/work_dot_bat install-wrappers [project=<name>]
+  ./.tools/work --run install-wrappers [project=<name>]
   ```
 *(Omit `project=<name>` to install wrappers into all registered project repositories).*
 

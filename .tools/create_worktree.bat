@@ -1,3 +1,3 @@
 @echo off
-call "%~dp0work_dot_bat.bat" create_worktree %*
+call "%~dp0work.bat" --run create_worktree %*
 exit /b %errorlevel%

@@ -133,7 +133,7 @@ if ($SetWorkDotBatBin) {
 
 # 5. Verification
 Write-Host "`nVerifying command availability:" -ForegroundColor Cyan
-$cmd = Get-Command "work_dot_bat.bat" -ErrorAction SilentlyContinue
+$cmd = Get-Command "work_dot_bat.exe" -ErrorAction SilentlyContinue
 if (-not $cmd) {
     $cmd = Get-Command "work_dot_bat" -ErrorAction SilentlyContinue
 }

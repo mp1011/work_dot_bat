@@ -34,8 +34,6 @@ This is a practical map of the repository. Summaries are intentionally brief.
   - `update-project-structure.sh` - <!-- TODO: summarize -->
   - `work` - <!-- TODO: summarize -->
   - `work.bat` - <!-- TODO: summarize -->
-  - `work_dot_bat` - <!-- TODO: summarize -->
-  - `work_dot_bat.bat` - <!-- TODO: summarize -->
   - `worktree-info.sh` - <!-- TODO: summarize -->
   - `add-to-path.bat` - <!-- TODO: summarize -->
   - `add-to-path.ps1` - <!-- TODO: summarize -->
