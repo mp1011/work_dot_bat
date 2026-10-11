@@ -36,13 +36,21 @@ func exec(t *testing.T, argv []string, stdin string, interactive bool, registry 
 }
 
 func TestUsageError(t *testing.T) {
-	for _, argv := range [][]string{nil, {"nosuchtool"}} {
+	for _, argv := range [][]string{nil, {"nosuchtool"}, {"--run", "nosuchtool"}} {
 		code, _, stderr := exec(t, argv, "", false, "")
 		if code != 2 || !strings.Contains(stderr, "Usage: work_dot_bat <work|") {
 			t.Errorf("%v: code %d stderr %q", argv, code, stderr)
 		}
 	}
 }
+
+func TestRunFlagAccepted(t *testing.T) {
+	code, stdout, _ := exec(t, []string{"--run", "--version"}, "", false, "")
+	if code != 0 || !strings.Contains(stdout, "work_dot_bat") {
+		t.Errorf("code %d stdout %q", code, stdout)
+	}
+}
+
 
 func TestUnknownProjectNamesRegistered(t *testing.T) {
 	registry, _ := setup(t, []projects.Project{{Name: "foo"}, {Name: "bar", Path: "/bar"}})

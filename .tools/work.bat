@@ -19,10 +19,12 @@ if not exist "%BIN%" (
   exit /b 1
 )
 :run
-if /i "%~1"=="--run" (
-  shift
-  "%BIN%" %1 %2 %3 %4 %5 %6 %7 %8 %9
-  exit /b %errorlevel%
-)
+if /i "%~1"=="--run" goto run_subcommand
 "%BIN%" work %*
+exit /b %errorlevel%
+
+:run_subcommand
+set "REST="
+for /f "tokens=1* delims= " %%a in ("%*") do set "REST=%%b"
+"%BIN%" %REST%
 exit /b %errorlevel%

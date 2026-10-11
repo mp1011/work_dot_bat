@@ -6,6 +6,7 @@ package taskmenu
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -17,7 +18,9 @@ import (
 // Item is a plan as the menu lists it; IsSubtask marks a row grouped under its parent.
 type Item struct {
 	planstatus.Entry
-	IsSubtask bool
+	IsSubtask   bool
+	Depth       int
+	DisplayPath string
 }
 
 var statusColorCodes = map[string]string{
@@ -92,8 +95,85 @@ func isResolved(status string) bool {
 	return status == "Ready for Review" || status == "Done" || status == "Cancelled"
 }
 
+func resolveParentPath(t planstatus.Entry, inRunnable map[string]bool) string {
+	if t.SubtaskOf != "" {
+		p := planstatus.NormalizePlanPath(t.SubtaskOf)
+		if inRunnable[p] {
+			return p
+		}
+		if inRunnable[p+"/plan.md"] {
+			return p + "/plan.md"
+		}
+		if inRunnable[p+"/readme.md"] {
+			return p + "/readme.md"
+		}
+		if strings.HasSuffix(p, "/plan.md") && inRunnable[strings.TrimSuffix(p, "/plan.md")] {
+			return strings.TrimSuffix(p, "/plan.md")
+		}
+		if strings.HasSuffix(p, "/readme.md") && inRunnable[strings.TrimSuffix(p, "/readme.md")] {
+			return strings.TrimSuffix(p, "/readme.md")
+		}
+		return ""
+	}
+	cur := path.Dir(toSlash(t.Path))
+	for cur != "plans" && cur != "." && cur != "" {
+		if inRunnable[cur+"/plan.md"] && cur+"/plan.md" != t.Path {
+			return cur + "/plan.md"
+		}
+		if inRunnable[cur+"/readme.md"] && cur+"/readme.md" != t.Path {
+			return cur + "/readme.md"
+		}
+		if inRunnable[cur] && cur != t.Path {
+			return cur
+		}
+		cur = path.Dir(cur)
+	}
+	return ""
+}
+
+func countMDFilesInDir(dir string, root string, allTasks []planstatus.Entry) int {
+	if root != "" {
+		fullDir := filepath.Join(root, "agent_docs", filepath.FromSlash(dir))
+		entries, err := os.ReadDir(fullDir)
+		if err == nil {
+			count := 0
+			for _, e := range entries {
+				if !e.IsDir() && strings.HasSuffix(strings.ToLower(e.Name()), ".md") {
+					count++
+				}
+			}
+			return count
+		}
+	}
+	count := 0
+	for _, t := range allTasks {
+		tPath := toSlash(t.Path)
+		if path.Dir(tPath) == dir && strings.HasSuffix(strings.ToLower(tPath), ".md") {
+			count++
+		}
+	}
+	return count
+}
+
+func computeDisplayPath(p string, root string, allTasks []planstatus.Entry) string {
+	clean := toSlash(p)
+	base := strings.ToLower(path.Base(clean))
+	if base != "plan.md" && base != "readme.md" {
+		return clean
+	}
+	dir := path.Dir(clean)
+	if dir == "." || dir == "" || dir == "/" {
+		return clean
+	}
+	if countMDFilesInDir(dir, root, allTasks) == 1 {
+		return dir
+	}
+	return clean
+}
+
 // RunnableAndGrouped filters the plan set to the runnable backlog and orders it: each parent
-// followed by its subtasks (by priority, P1 first, unprioritised last in scan order).
+// followed by its subtasks (recursively indenting multi-level subtasks, by priority, P1 first,
+// unprioritised last in scan order).
 func RunnableAndGrouped(tasks []planstatus.Entry, root string) []Item {
 	statusOf := map[string]string{}
 	for _, t := range tasks {
@@ -116,10 +196,13 @@ func RunnableAndGrouped(tasks []planstatus.Entry, root string) []Item {
 	for _, t := range runnable {
 		inRunnable[t.Path] = true
 	}
+	parentOf := map[string]string{}
 	subtasks := map[string][]planstatus.Entry{}
 	for _, t := range runnable {
-		if t.SubtaskOf != "" && inRunnable[t.SubtaskOf] {
-			subtasks[t.SubtaskOf] = append(subtasks[t.SubtaskOf], t)
+		p := resolveParentPath(t, inRunnable)
+		if p != "" && p != t.Path {
+			parentOf[t.Path] = p
+			subtasks[p] = append(subtasks[p], t)
 		}
 	}
 	rank := func(e planstatus.Entry) int {
@@ -129,15 +212,36 @@ func RunnableAndGrouped(tasks []planstatus.Entry, root string) []Item {
 		return e.Priority
 	}
 	var ordered []Item
-	for _, t := range runnable {
-		if t.SubtaskOf != "" && inRunnable[t.SubtaskOf] {
-			continue
+	visited := map[string]bool{}
+	inStack := map[string]bool{}
+	var traverse func(e planstatus.Entry, depth int)
+	traverse = func(e planstatus.Entry, depth int) {
+		if visited[e.Path] || inStack[e.Path] {
+			return
 		}
-		ordered = append(ordered, Item{Entry: t})
-		subs := subtasks[t.Path]
+		visited[e.Path] = true
+		inStack[e.Path] = true
+		ordered = append(ordered, Item{
+			Entry:       e,
+			IsSubtask:   depth > 0,
+			Depth:       depth,
+			DisplayPath: computeDisplayPath(e.Path, root, tasks),
+		})
+		subs := subtasks[e.Path]
 		sort.SliceStable(subs, func(i, j int) bool { return rank(subs[i]) < rank(subs[j]) })
 		for _, s := range subs {
-			ordered = append(ordered, Item{Entry: s, IsSubtask: true})
+			traverse(s, depth+1)
+		}
+		inStack[e.Path] = false
+	}
+	for _, t := range runnable {
+		if parentOf[t.Path] == "" {
+			traverse(t, 0)
+		}
+	}
+	for _, t := range runnable {
+		if !visited[t.Path] {
+			traverse(t, 0)
 		}
 	}
 	return ordered
@@ -212,7 +316,9 @@ func FormatSuggestionList(suggestions []planstatus.Entry, root string) []string 
 
 func TaskHasSubtasks(task planstatus.Entry, tasks []Item) bool {
 	for _, t := range tasks {
-		if t.SubtaskOf == task.Path {
+		if t.SubtaskOf == task.Path ||
+			t.SubtaskOf == strings.TrimSuffix(task.Path, "/plan.md") ||
+			t.SubtaskOf == strings.TrimSuffix(task.Path, "/readme.md") {
 			return true
 		}
 	}
@@ -220,31 +326,51 @@ func TaskHasSubtasks(task planstatus.Entry, tasks []Item) bool {
 }
 
 func IsAutoTask(task planstatus.Entry, tasks []Item) bool {
-	if task.Auto {
-		return true
-	}
-	if task.SubtaskOf == "" {
-		return false
-	}
-	for _, t := range tasks {
-		if t.Path == task.SubtaskOf {
-			return t.Auto
+	seen := map[string]bool{}
+	curr := task
+	for {
+		if curr.Auto {
+			return true
+		}
+		if curr.SubtaskOf == "" || seen[curr.Path] {
+			return false
+		}
+		seen[curr.Path] = true
+		found := false
+		for _, t := range tasks {
+			if t.Path == curr.SubtaskOf ||
+				t.Path == curr.SubtaskOf+"/plan.md" ||
+				strings.TrimSuffix(t.Path, "/plan.md") == curr.SubtaskOf {
+				curr = t.Entry
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
 		}
 	}
-	return false
 }
 
 // FormatTaskLine renders one numbered menu row; index is zero-based.
 func FormatTaskLine(task Item, index int, tasks []Item, isTTY bool) string {
+	depth := task.Depth
+	if depth <= 0 && task.IsSubtask {
+		depth = 1
+	}
 	prefix := "  "
-	if task.IsSubtask {
-		prefix = "     ↳ "
+	if depth > 0 {
+		prefix = strings.Repeat(" ", 2+3*depth) + "↳ "
 	}
 	label := ColorizeStatus(task.Status, task.Status, isTTY)
 	if task.WorktreeBranch != "" {
 		label += " @ " + task.WorktreeBranch
 	}
-	line := fmt.Sprintf("%s%d) [%s] %s", prefix, index+1, label, task.Path)
+	displayPath := task.DisplayPath
+	if displayPath == "" {
+		displayPath = task.Path
+	}
+	line := fmt.Sprintf("%s%d) [%s] %s", prefix, index+1, label, displayPath)
 	if task.Priority != 0 {
 		line += fmt.Sprintf(" [P%d]", task.Priority)
 	}

@@ -55,6 +55,10 @@ func run(argv []string, e env) int {
 		return code
 	}
 
+	if len(argv) > 0 && argv[0] == "--run" {
+		argv = argv[1:]
+	}
+
 	if len(argv) > 0 && (argv[0] == "--version" || argv[0] == "-v" || argv[0] == "version") {
 		fmt.Fprintf(e.stdout, "work_dot_bat %s\n", Version)
 		return 0

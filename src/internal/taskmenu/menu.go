@@ -179,8 +179,14 @@ func (m Menu) Select() Result {
 }
 
 func findListed(listed []Item, input string) *Item {
+	clean := strings.TrimSpace(input)
 	for _, t := range listed {
-		if t.Path == input || t.Path == "plans/"+input {
+		disp := t.DisplayPath
+		if disp == "" {
+			disp = t.Path
+		}
+		if t.Path == clean || t.Path == "plans/"+clean ||
+			disp == clean || disp == "plans/"+clean {
 			t := t
 			return &t
 		}

@@ -306,3 +306,121 @@ func TestParseIntMatchesJS(t *testing.T) {
 		t.Error("abc parsed")
 	}
 }
+
+func TestNestedPlansDisplayAndIndentation(t *testing.T) {
+	root := t.TempDir()
+	plan(t, root, "plans/parent/plan.md", fm("Not Started", ""))
+	plan(t, root, "plans/parent/child/plan.md", fm("Not Started", "subtask_of: plans/parent/plan.md\n"))
+	plan(t, root, "plans/parent/child/grandchild/plan.md", fm("Not Started", "subtask_of: plans/parent/child/plan.md\n"))
+
+	h := newHarness(t, root, "0")
+	h.menu.Select()
+
+	wantLines := []string{
+		"Incomplete Tasks:\n",
+		"  1) [Not Started] plans/parent",
+		"     ↳ 2) [Not Started] plans/parent/child",
+		"        ↳ 3) [Not Started] plans/parent/child/grandchild",
+	}
+	for _, want := range wantLines {
+		if !strings.Contains(h.text(), want) {
+			t.Fatalf("expected output to contain %q, but got:\n%s", want, h.text())
+		}
+	}
+}
+
+func TestNestedPlansMultipleMDFilesNotOmitted(t *testing.T) {
+	root := t.TempDir()
+	plan(t, root, "plans/parent/plan.md", fm("Not Started", ""))
+	plan(t, root, "plans/parent/extra.md", fm("Not Started", "subtask_of: plans/parent/plan.md\n"))
+	plan(t, root, "plans/parent/child/plan.md", fm("Not Started", "subtask_of: plans/parent/plan.md\n"))
+	plan(t, root, "plans/parent/child/grandchild/plan.md", fm("Not Started", "subtask_of: plans/parent/child/plan.md\n"))
+
+	h := newHarness(t, root, "0")
+	h.menu.Select()
+
+	// In plans/parent, there are 2 md files (plan.md and extra.md), so plan.md is NOT omitted.
+	// In plans/parent/child and grandchild, there is only one md file, so plan.md IS omitted.
+	if !strings.Contains(h.text(), "  1) [Not Started] plans/parent/plan.md") {
+		t.Fatalf("plans/parent/plan.md should not be omitted when multiple md files exist:\n%s", h.text())
+	}
+	if !strings.Contains(h.text(), "     ↳ 2) [Not Started] plans/parent/child") {
+		t.Fatalf("plans/parent/child should be omitted:\n%s", h.text())
+	}
+	if !strings.Contains(h.text(), "        ↳ 3) [Not Started] plans/parent/child/grandchild") {
+		t.Fatalf("plans/parent/child/grandchild should be omitted:\n%s", h.text())
+	}
+}
+
+func TestSingleReadmeMDOmitted(t *testing.T) {
+	root := t.TempDir()
+	plan(t, root, "plans/my_project/readme.md", fm("Not Started", ""))
+
+	h := newHarness(t, root, "0")
+	h.menu.Select()
+
+	if !strings.Contains(h.text(), "  1) [Not Started] plans/my_project") {
+		t.Fatalf("single readme.md should be omitted:\n%s", h.text())
+	}
+}
+
+func TestSelectNestedByDisplayName(t *testing.T) {
+	root := t.TempDir()
+	plan(t, root, "plans/parent/plan.md", fm("Not Started", ""))
+	plan(t, root, "plans/parent/child/plan.md", fm("Not Started", "subtask_of: plans/parent/plan.md\n"))
+
+	// Selecting by displayed path "plans/parent/child"
+	h := newHarness(t, root, "plans/parent/child")
+	r := h.menu.Select()
+	if r.Task == nil || r.Task.Path != "plans/parent/child/plan.md" {
+		t.Fatalf("expected plans/parent/child/plan.md, got %+v", r.Task)
+	}
+
+	// Selecting by short name "parent/child"
+	h = newHarness(t, root, "parent/child")
+	r = h.menu.Select()
+	if r.Task == nil || r.Task.Path != "plans/parent/child/plan.md" {
+		t.Fatalf("expected plans/parent/child/plan.md, got %+v", r.Task)
+	}
+}
+
+func TestDeepNestingIndentationFormat(t *testing.T) {
+	item0 := Item{Entry: planstatus.Entry{Path: "plans/root/plan.md", Status: "Not Started"}, Depth: 0}
+	item1 := Item{Entry: planstatus.Entry{Path: "plans/root/c1/plan.md", Status: "Not Started"}, Depth: 1, IsSubtask: true}
+	item2 := Item{Entry: planstatus.Entry{Path: "plans/root/c1/c2/plan.md", Status: "Not Started"}, Depth: 2, IsSubtask: true}
+	item3 := Item{Entry: planstatus.Entry{Path: "plans/root/c1/c2/c3/plan.md", Status: "Not Started"}, Depth: 3, IsSubtask: true}
+
+	if got := FormatTaskLine(item0, 9, nil, false); got != "  10) [Not Started] plans/root/plan.md" {
+		t.Fatalf("depth 0 got %q", got)
+	}
+	if got := FormatTaskLine(item1, 10, nil, false); got != "     ↳ 11) [Not Started] plans/root/c1/plan.md" {
+		t.Fatalf("depth 1 got %q", got)
+	}
+	if got := FormatTaskLine(item2, 11, nil, false); got != "        ↳ 12) [Not Started] plans/root/c1/c2/plan.md" {
+		t.Fatalf("depth 2 got %q", got)
+	}
+	if got := FormatTaskLine(item3, 12, nil, false); got != "           ↳ 13) [Not Started] plans/root/c1/c2/c3/plan.md" {
+		t.Fatalf("depth 3 got %q", got)
+	}
+}
+
+func TestDeepAutoInheritance(t *testing.T) {
+	root := t.TempDir()
+	plan(t, root, "plans/parent/plan.md", fm("Not Started", "auto: true\n"))
+	plan(t, root, "plans/parent/child/plan.md", fm("Not Started", "subtask_of: plans/parent/plan.md\n"))
+	plan(t, root, "plans/parent/child/grandchild/plan.md", fm("Not Started", "subtask_of: plans/parent/child/plan.md\n"))
+
+	h := newHarness(t, root, "0")
+	h.menu.Select()
+
+	if !strings.Contains(h.text(), "  1) [Not Started] plans/parent [auto]") {
+		t.Fatalf("parent should be [auto]:\n%s", h.text())
+	}
+	if !strings.Contains(h.text(), "     ↳ 2) [Not Started] plans/parent/child [auto]") {
+		t.Fatalf("child should be [auto]:\n%s", h.text())
+	}
+	if !strings.Contains(h.text(), "        ↳ 3) [Not Started] plans/parent/child/grandchild [auto]") {
+		t.Fatalf("grandchild should be [auto]:\n%s", h.text())
+	}
+}
+

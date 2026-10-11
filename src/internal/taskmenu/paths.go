@@ -72,6 +72,14 @@ func ResolvePlanPath(raw, repoRoot string) string {
 	if hasParentSegment(entry) {
 		return ""
 	}
+	if !strings.HasSuffix(strings.ToLower(entry), ".md") && repoRoot != "" {
+		docs := filepath.Join(repoRoot, "agent_docs")
+		if fileExists(filepath.Join(docs, filepath.FromSlash(entry), "plan.md")) {
+			entry = path.Join(entry, "plan.md")
+		} else if fileExists(filepath.Join(docs, filepath.FromSlash(entry), "readme.md")) {
+			entry = path.Join(entry, "readme.md")
+		}
+	}
 	return entry
 }
 
