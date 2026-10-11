@@ -76,17 +76,14 @@ func BuildInvocation(agent, repoRoot, prompt string, o InvocationOptions, s Sett
 	return BuildCommand(agent, CommandOptions{RepoRoot: repoRoot, Prompt: prompt, SessionID: o.SessionID, LogFile: log}, s)
 }
 
-// BuildDoWorkYoloPrompt: launcherHoldsClaim tells the agent the launcher owns the claim's
-// acquire and release (and the Ready for Review transition).
+// BuildDoWorkYoloPrompt: launcherHoldsClaim tells the agent not to mark 'Ready for Review'
+// directly because the automated test harness runs verification after exit.
 func BuildDoWorkYoloPrompt(planPath string, launcherHoldsClaim bool) string {
 	base := "/do-work-yolo " + planPath
 	if !launcherHoldsClaim {
 		return base
 	}
-	return base + "\n\nNote: the launcher that spawned you already holds the plan/branch claim and " +
-		"releases it when you exit. Skip STEP ZERO's acquire and do not run `plan-claim.sh release`; " +
-		"still run the `concurrent-check` read. " +
-		"Do not mark the plan 'Ready for Review' — the automated test harness runs verification after you " +
+	return base + "\n\nNote: do not mark the plan 'Ready for Review' — the automated test harness runs verification after you " +
 		"exit and sets Ready for Review only after all checks pass."
 }
 
@@ -111,11 +108,8 @@ func BuildFailureFollowupPrompt(planPath, planContent string, failures []string,
 	return strings.Join(lines, "\n")
 }
 
-// LauncherClaimNote is appended to a prompt when the interactive launcher holds the plan/branch
-// claim for the agent's run.
-const LauncherClaimNote = "\n\nNote: work.bat already holds the plan/branch claim and releases it when you exit. " +
-	"Skip STEP ZERO's acquire and do not run `plan-claim.sh release`; " +
-	"still run the `concurrent-check` read."
+// LauncherClaimNote is retained for compatibility but empty: claims are not managed by the agent prompt.
+const LauncherClaimNote = ""
 
 // ImmediatePlanNote is appended to the prompt for the immediate plan (agent_docs/plans/immediate.md):
 // the Work script owns its status and body, so the agent only fixes the recorded failures.
@@ -124,14 +118,10 @@ const ImmediatePlanNote = "\n\nNote: this is the immediate plan. Fix the failure
 	"the Work script sets it Done and clears it when the automations pass."
 
 func BuildRetryPrompt(planPath, currentStatus string, launcherHoldsClaim bool) string {
-	claimNote := ""
-	if launcherHoldsClaim {
-		claimNote = LauncherClaimNote
-	}
 	return fmt.Sprintf("The previous execution of /do-work-yolo %s ended with status \"%s\" instead of \"Ready for Review\".\n\n", planPath, currentStatus) +
 		fmt.Sprintf("Please continue working on this task using /do-work-yolo %s. Complete all remaining requirements, ", planPath) +
 		"ensure automated tests pass, and set the task status to \"Ready for Review\" via " +
-		fmt.Sprintf("`scripts/work_dot_bat/plan-status.sh set %s \"Ready for Review\"`.", planPath) + claimNote
+		fmt.Sprintf("`scripts/work_dot_bat/plan-status.sh set %s \"Ready for Review\"`.", planPath)
 }
 
 // BuildGeneralAgentPrompt reads "<planPath> for context"; when repoRoot is given and the plan

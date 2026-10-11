@@ -533,13 +533,7 @@ func (a App) workOnTask(ctx context.Context, task *taskmenu.Item, agent *string,
 		}
 		a.promptRunTests()
 	}
-	if isParent {
-		launch(prompt)
-		return stay
-	}
-	if !a.WithClaim(planPath, func() { launch(prompt + agentcmd.LauncherClaimNote) }) {
-		a.log("\n[SKIP] The plan/branch claim is held by someone else. Not starting this task.")
-	}
+	launch(prompt)
 	return stay
 }
 

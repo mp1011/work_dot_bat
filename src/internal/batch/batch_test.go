@@ -308,7 +308,7 @@ func TestLoopRunsSubtasksThenParentAndReleasesEachClaim(t *testing.T) {
 	if !res.Success || !reflect.DeepEqual(h.acquired, want) || !reflect.DeepEqual(h.released, want) || !reflect.DeepEqual(h.invoked, want) {
 		t.Errorf("%+v\nacquired %v\nreleased %v\ninvoked %v", res, h.acquired, h.released, h.invoked)
 	}
-	if !strings.HasPrefix(h.prompts[0], "/do-work-yolo agent_docs/plans/test/01.md\n\nNote: work.bat already holds the plan/branch claim") {
+	if h.prompts[0] != "/do-work-yolo agent_docs/plans/test/01.md" {
 		t.Errorf("prompt %q", h.prompts[0])
 	}
 }
@@ -332,7 +332,7 @@ func TestLoopRetriesOnceWhenNotReadyForReview(t *testing.T) {
 	if !res.Success || calls != 3 {
 		t.Fatalf("%+v calls %d", res, calls)
 	}
-	if !strings.Contains(h.prompts[1], `ended with status "In Progress" instead of "Ready for Review"`) || !strings.Contains(h.prompts[1], "work.bat already holds") {
+	if !strings.Contains(h.prompts[1], `ended with status "In Progress" instead of "Ready for Review"`) {
 		t.Errorf("retry prompt %q", h.prompts[1])
 	}
 
@@ -364,7 +364,7 @@ func TestLoopTestRetryBudget(t *testing.T) {
 		}
 	}
 	if len(fixups) != 2 || !strings.Contains(fixups[0], "attempt 1 of 3") || !strings.Contains(fixups[1], "attempt 2 of 3") ||
-		!strings.HasSuffix(fixups[0], "still run the `concurrent-check` read.") || !strings.Contains(fixups[0], "# Test Plan") {
+		!strings.HasSuffix(fixups[0], "Do not commit or push.") || !strings.Contains(fixups[0], "# Test Plan") {
 		t.Errorf("fix-ups %q", fixups)
 	}
 

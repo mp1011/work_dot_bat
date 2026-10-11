@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"testing"
 
 	"work_dot_bat/src/internal/menu"
@@ -62,10 +61,7 @@ func TestPrompts(t *testing.T) {
 	if got := BuildDoWorkYoloPrompt("p.md", false); got != "/do-work-yolo p.md" {
 		t.Error(got)
 	}
-	want := "/do-work-yolo p.md\n\nNote: the launcher that spawned you already holds the plan/branch claim and " +
-		"releases it when you exit. Skip STEP ZERO's acquire and do not run `plan-claim.sh release`; " +
-		"still run the `concurrent-check` read. " +
-		"Do not mark the plan 'Ready for Review' — the automated test harness runs verification after you " +
+	want := "/do-work-yolo p.md\n\nNote: do not mark the plan 'Ready for Review' — the automated test harness runs verification after you " +
 		"exit and sets Ready for Review only after all checks pass."
 	if got := BuildDoWorkYoloPrompt("p.md", true); got != want {
 		t.Error(got)
@@ -87,7 +83,7 @@ func TestPrompts(t *testing.T) {
 		t.Error(got)
 	}
 	got = BuildRetryPrompt("p.md", "In Progress", true)
-	if !strings.HasSuffix(got, "`.\n\nNote: work.bat already holds the plan/branch claim and releases it when you exit. Skip STEP ZERO's acquire and do not run `plan-claim.sh release`; still run the `concurrent-check` read.") {
+	if got != want {
 		t.Error(got)
 	}
 }

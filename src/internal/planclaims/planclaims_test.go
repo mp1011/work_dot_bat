@@ -94,17 +94,6 @@ func TestCheckFreeHeldAndReadOnly(t *testing.T) {
 	}
 }
 
-func TestConcurrentCheck(t *testing.T) {
-	_, _, cli, out, errb := fixture(t)
-	if code, o, _ := cli.do(out, errb, "concurrent-check", sub); code != 0 || o != "FREE  plans/x/01.md\n" {
-		t.Fatalf("code=%d out=%q", code, o)
-	}
-	cli.do(out, errb, "acquire", sub, "--owner", "me")
-	code, o, _ := cli.do(out, errb, "concurrent-check", sub)
-	if code != 1 || !strings.HasPrefix(o, "BLOCKED  plans/x/01.md\n      live claim — held by agent \"me\" (pid 4242, HOST), 0s ago\n") {
-		t.Fatalf("code=%d out=%q", code, o)
-	}
-}
 
 func TestReleaseRenewAndErrors(t *testing.T) {
 	_, c, cli, out, errb := fixture(t)

@@ -221,32 +221,6 @@ func ClaimDecision(existing *Claim, now time.Time, lv Liveness) Decision {
 	return Decision{StaleReport, fmt.Sprintf("past ttl (%s) — owner may still be running; use --steal to override", FormatAge(age))}
 }
 
-// BlockingClaim is a held or stale-report claim.
-type BlockingClaim struct {
-	Record   Claim
-	Decision Decision
-}
-
-// ClassifyConcurrentWork turns blocking claims plus a worktree branch that advanced the plan
-// into the reasons a fresh run should not start. No reasons means go.
-func ClassifyConcurrentWork(blocking []BlockingClaim, worktreeBranch, worktreeStatus string) (free bool, reasons []string) {
-	for _, c := range blocking {
-		who := DescribeOwner(c.Record.Owner)
-		if c.Decision.State == StaleReport {
-			reasons = append(reasons, fmt.Sprintf("stale claim by %s — %s", who, c.Decision.Reason))
-		} else {
-			reasons = append(reasons, "live claim — "+c.Decision.Reason)
-		}
-	}
-	if worktreeBranch != "" {
-		movedTo := "tracked only on"
-		if worktreeStatus != "" && worktreeStatus != "Not Started" {
-			movedTo = fmt.Sprintf("advanced to \"%s\" on", worktreeStatus)
-		}
-		reasons = append(reasons, fmt.Sprintf("%s worktree branch '%s' — unmerged work exists there", movedTo, worktreeBranch))
-	}
-	return len(reasons) == 0, reasons
-}
 
 // ---------------------------------------------------------------------------
 // I/O

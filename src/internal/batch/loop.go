@@ -146,7 +146,7 @@ func runIteration(r LoopRun, target planstatus.Entry, planPath string, isParentR
 	}
 
 	logf("\nInvoking /do-work-yolo on " + planPath + "...")
-	if a := r.RunAgent("/do-work-yolo "+planPath+agentcmd.LauncherClaimNote, planPath, 1); a.RateLimited {
+	if a := r.RunAgent("/do-work-yolo "+planPath, planPath, 1); a.RateLimited {
 		return ratelimited(target), true
 	}
 
@@ -181,7 +181,7 @@ func runIteration(r LoopRun, target planstatus.Entry, planPath string, isParentR
 			if r.ReadPlan != nil {
 				content = r.ReadPlan(planPath)
 			}
-			prompt := agentcmd.BuildFailureFollowupPrompt(planPath, content, failures, attempts, maxTestAttempts) + agentcmd.LauncherClaimNote
+			prompt := agentcmd.BuildFailureFollowupPrompt(planPath, content, failures, attempts, maxTestAttempts)
 			if a := r.RunAgent(prompt, planPath, attempts+1); a.RateLimited {
 				return false, ratelimited(target)
 			}

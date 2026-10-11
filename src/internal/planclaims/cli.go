@@ -150,8 +150,6 @@ func (c CLI) dispatch(cmd string, rest []string, hasCmd bool) (int, error) {
 	switch cmd {
 	case "check":
 		return c.check(rest)
-	case "concurrent-check":
-		return c.concurrentCheck(rest)
 	case "acquire":
 		return c.acquire(rest)
 	case "renew":
@@ -167,7 +165,7 @@ func (c CLI) dispatch(cmd string, rest []string, hasCmd bool) (int, error) {
 	if hasCmd {
 		name = cmd
 	}
-	fmt.Fprintf(c.Stderr, "Unknown command: \"%s\"\nUsage: plan-claim.sh <check|concurrent-check|acquire|renew|release|list|prune> ...\n", name)
+	fmt.Fprintf(c.Stderr, "Unknown command: \"%s\"\nUsage: plan-claim.sh <check|acquire|renew|release|list|prune> ...\n", name)
 	return 1, nil
 }
 
@@ -192,42 +190,6 @@ func (c CLI) check(rest []string) (int, error) {
 	return 1, nil
 }
 
-func (c CLI) concurrentCheck(rest []string) (int, error) {
-	if len(rest) == 0 {
-		return 0, fmt.Errorf("Usage: plan-claim.sh concurrent-check <plan>")
-	}
-	planID, branch, err := c.resolve(rest[0])
-	if err != nil {
-		return 0, err
-	}
-	var blocking []BlockingClaim
-	for _, b := range dedupeByClaimEvent(c.blocking(scopesFor(planID, branch, ""), true)) {
-		blocking = append(blocking, BlockingClaim{b.Record, b.Decision})
-	}
-	entries := planstatus.ReadStatus(c.Root)
-	if c.Collect != nil {
-		if byPath, err := c.Collect(c.Root); err == nil && byPath != nil {
-			entries = planstatus.ApplyWorktreeStatuses(entries, byPath)
-		}
-	}
-	wtBranch, wtStatus := "", ""
-	for _, e := range entries {
-		if e.Path == planID {
-			wtBranch, wtStatus = e.WorktreeBranch, e.Status
-			break
-		}
-	}
-	free, reasons := ClassifyConcurrentWork(blocking, wtBranch, wtStatus)
-	if free {
-		c.printf("FREE  %s\n", planID)
-		return 0, nil
-	}
-	for i := range reasons {
-		reasons[i] = "      " + reasons[i]
-	}
-	c.printf("BLOCKED  %s\n%s\n", planID, strings.Join(reasons, "\n"))
-	return 1, nil
-}
 
 var digitsRE = regexp.MustCompile(`^\d+$`)
 

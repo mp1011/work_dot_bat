@@ -15,7 +15,6 @@ Agents: read the **Critical Rules** and the **Session Startup Protocol** below, 
 >    - Needs a human decision to proceed: `scripts/work_dot_bat/plan-status.sh set <path> "Blocked - User Input Required"`.
 >    - Creating a new plan file under `agent_docs/plans/`: `scripts/work_dot_bat/plan-status.sh add <path>` (lands as `"Not Started"`). Start from `{{plan_template}}`.
 >    - Untracked recommendations found in plan files: write each to `agent_docs/plans/agent_suggestions/<name>.md` and register it with `scripts/work_dot_bat/plan-status.sh add <path>`.
-> 4. **Check for concurrent work before starting a plan**: `scripts/work_dot_bat/plan-claim.sh check <plan>` and `scripts/work_dot_bat/plan-status.sh list-tasks`.
 
 ## Session Startup Protocol (Agents)
 

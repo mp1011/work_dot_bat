@@ -117,7 +117,7 @@ func planStatusOf(t *testing.T, root, rel string) string {
 
 // Work on a leaf plan: claim held during the agent run, prompt carries the launcher note, and
 // the claim is gone afterwards even though the agent failed.
-func TestWorkOnLeafHoldsClaimAndReleasesAfterFailingAgent(t *testing.T) {
+func TestWorkOnLeafLaunchesAgentDirectlyWithoutClaims(t *testing.T) {
 	f := newFixture(t, "w", "be careful", "c", "n", "s")
 	f.selecting("plans/x.md")
 	var during []string
@@ -125,8 +125,8 @@ func TestWorkOnLeafHoldsClaimAndReleasesAfterFailingAgent(t *testing.T) {
 	if code := f.run(); code != 0 {
 		t.Fatalf("exit %d\n%s", code, f.out.String())
 	}
-	if len(during) != 2 {
-		t.Errorf("plan and branch claims should be held during the run, got %v", during)
+	if len(during) != 0 {
+		t.Errorf("interactive launch should not acquire claims, got %v", during)
 	}
 	if left := f.claimFiles(); len(left) != 0 {
 		t.Errorf("claims left behind: %v", left)
@@ -135,7 +135,7 @@ func TestWorkOnLeafHoldsClaimAndReleasesAfterFailingAgent(t *testing.T) {
 		t.Fatalf("agent runs: %d\n%s", len(f.agent), f.out.String())
 	}
 	c := f.agent[0]
-	wantPrompt := "/do-work-yolo agent_docs/plans/x.md be careful" + agentcmd.LauncherClaimNote
+	wantPrompt := "/do-work-yolo agent_docs/plans/x.md be careful"
 	if c.Cmd != "claude" || c.Args[len(c.Args)-1] != wantPrompt || contains(c.Args, "--print") {
 		t.Errorf("command %+v", c)
 	}
@@ -162,15 +162,12 @@ func contains(list []string, s string) bool {
 	return false
 }
 
-// An interrupt (the context is cancelled while the agent runs) still releases the claim.
-func TestInterruptReleasesClaim(t *testing.T) {
+// An interrupt (the context is cancelled while the agent runs) leaves no claims behind.
+func TestInterruptDoesNotLeaveClaims(t *testing.T) {
 	f := newFixture(t, "w", "", "c", "n", "s")
 	f.selecting("plans/x.md")
 	ctx, cancel := context.WithCancel(context.Background())
 	f.onAgent = func(ctx context.Context) int {
-		if len(f.claimFiles()) != 2 {
-			t.Errorf("claims not held before launch: %v", f.claimFiles())
-		}
 		cancel()
 		<-ctx.Done()
 		return 1
@@ -203,18 +200,18 @@ func TestClaimReleasedWhenLaunchPanics(t *testing.T) {
 	}
 }
 
-func TestClaimHeldBySomeoneElseSkipsTheRun(t *testing.T) {
-	f := newFixture(t, "w", "", "c", "s")
+func TestClaimHeldBySomeoneElseDoesNotBlockInteractiveWork(t *testing.T) {
+	f := newFixture(t, "w", "", "c", "n", "s")
 	f.selecting("plans/x.md")
 	other := planclaims.CLI{Root: f.root, Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}, Env: planclaims.DefaultEnv()}
 	if code := other.Run([]string{"acquire", "plans/x.md", "--owner", "daemon", "--kind", "daemon", "--pid", strconv.Itoa(os.Getppid())}); code != 0 {
 		t.Fatal("could not set up the held claim")
 	}
 	f.run()
-	if len(f.agent) != 0 {
-		t.Error("agent ran despite the held claim")
+	if len(f.agent) != 1 {
+		t.Error("agent should run despite the held claim")
 	}
-	if !strings.Contains(f.out.String(), "[SKIP] The plan/branch claim is held by someone else. Not starting this task.") {
+	if strings.Contains(f.out.String(), "[SKIP] The plan/branch claim is held by someone else. Not starting this task.") {
 		t.Errorf("output:\n%s", f.out.String())
 	}
 	if len(f.claimFiles()) != 2 {
