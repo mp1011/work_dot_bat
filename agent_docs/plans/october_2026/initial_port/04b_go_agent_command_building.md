@@ -1,6 +1,6 @@
 ---
 status: Done
-subtask_of: plans/initial_port/04_interactive_work.md
+subtask_of: plans/october_2026/initial_port/plan.md
 ---
 
 # Go agent settings, command and prompt building

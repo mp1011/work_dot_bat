@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"work_dot_bat/src/internal/projects"
 )
 
 func TestParseHeadingPath(t *testing.T) {
@@ -265,5 +267,16 @@ func TestReadStructureConfig(t *testing.T) {
 	put(t, root, "work_dot_bat.config.json", "{ nope")
 	if c := ReadStructureConfig(root); c.Doc != "agent_docs/03_project_structure.md" {
 		t.Errorf("an unreadable config falls back to the defaults: %+v", c)
+	}
+
+	// Test reading from projects.json when work_dot_bat.config.json is absent
+	regDir := t.TempDir()
+	regFile := filepath.Join(regDir, "projects.json")
+	projRoot := t.TempDir()
+	regContent := `{"projects":[{"name":"regproj","path":"` + filepath.ToSlash(projRoot) + `","projectStructureDoc":"agent_docs/custom.md","projectStructureDirs":["src","pkg"]}]}`
+	os.WriteFile(regFile, []byte(regContent), 0o644)
+	t.Setenv(projects.RegistryEnv, regFile)
+	if c := ReadStructureConfig(projRoot); c.Doc != "agent_docs/custom.md" || !reflect.DeepEqual(c.Dirs, []string{"src", "pkg"}) {
+		t.Errorf("registry-configured failed: %+v", c)
 	}
 }

@@ -256,3 +256,12 @@ func HasManualVerificationSteps(body string) bool {
 	}
 	return false
 }
+
+// SetFrontmatterBody keeps the frontmatter block and replaces everything after it.
+func SetFrontmatterBody(content, body string) string {
+	other, _ := splitBlock(content)
+	if other == nil {
+		return body
+	}
+	return assemble(append(append([]string{"---"}, other...), "---"), body)
+}

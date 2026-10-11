@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"time"
@@ -23,6 +24,8 @@ type Options struct {
 	// Heartbeat calls OnHeartbeat every interval while the process runs (0 = never).
 	Heartbeat   time.Duration
 	OnHeartbeat func(elapsed time.Duration)
+	// Stdout and Stderr receive the child's output; nil passes it through to the process's own.
+	Stdout, Stderr io.Writer
 }
 
 // Run runs cmd with stdout/stderr passed through and stdin closed (unattended), returning
@@ -41,6 +44,12 @@ func Run(ctx context.Context, name string, args []string, o Options) (int, error
 		}
 	}
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	if o.Stdout != nil {
+		cmd.Stdout = o.Stdout
+	}
+	if o.Stderr != nil {
+		cmd.Stderr = o.Stderr
+	}
 	prepare(cmd)
 	cmd.Cancel = func() error { return killTree(cmd) }
 	cmd.WaitDelay = 10 * time.Second

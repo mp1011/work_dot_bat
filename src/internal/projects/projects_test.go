@@ -608,5 +608,38 @@ func TestToolRoot(t *testing.T) {
 	}
 }
 
+func TestProjectEmptyChecksRoundTrip(t *testing.T) {
+	data := map[string]any{"projects": []any{
+		map[string]any{
+			"name":   "emptychecks",
+			"path":   "/empty",
+			"checks": []any{},
+		},
+	}}
+	projs, errs := ValidateRegistry(data)
+	if len(errs) != 0 || len(projs) != 1 {
+		t.Fatalf("unexpected: %v, %v", projs, errs)
+	}
+	p := projs[0]
+	if p.Checks == nil || len(p.Checks) != 0 {
+		t.Fatalf("expected non-nil empty checks, got %v", p.Checks)
+	}
+	if !p.HasConfig() {
+		t.Errorf("expected HasConfig() to be true for explicit empty checks")
+	}
+	m := p.ToConfigMap()
+	if _, ok := m["checks"]; !ok {
+		t.Errorf("expected ToConfigMap to have 'checks'")
+	}
+
+	b, err := json.Marshal(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), `"checks":[]`) {
+		t.Errorf("expected marshaled json to contain '\"checks\":[]', got %s", string(b))
+	}
+}
+
 
 

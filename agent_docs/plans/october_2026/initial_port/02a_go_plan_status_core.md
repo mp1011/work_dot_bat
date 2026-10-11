@@ -1,6 +1,6 @@
 ---
 status: Done
-subtask_of: plans/initial_port/02_plan_status_and_claims.md
+subtask_of: plans/october_2026/initial_port/plan.md
 ---
 
 # Go plan-status: frontmatter, set, add, and list

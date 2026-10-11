@@ -117,6 +117,12 @@ const LauncherClaimNote = "\n\nNote: work.bat already holds the plan/branch clai
 	"Skip STEP ZERO's acquire and do not run `plan-claim.sh release`; " +
 	"still run the `concurrent-check` read."
 
+// ImmediatePlanNote is appended to the prompt for the immediate plan (agent_docs/plans/immediate.md):
+// the Work script owns its status and body, so the agent only fixes the recorded failures.
+const ImmediatePlanNote = "\n\nNote: this is the immediate plan. Fix the failures it records. " +
+	"Do not run `plan-status.sh` on it (skip the \"Ready for Review\" step) and do not edit or erase the file: " +
+	"the Work script sets it Done and clears it when the automations pass."
+
 func BuildRetryPrompt(planPath, currentStatus string, launcherHoldsClaim bool) string {
 	claimNote := ""
 	if launcherHoldsClaim {

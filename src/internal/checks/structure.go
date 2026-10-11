@@ -583,14 +583,14 @@ var defaultStructureDirs = []string{"src", "e2e", "scripts", ".tools"}
 // projectStructureDirs); an unreadable config falls back to the defaults.
 func ReadStructureConfig(root string) StructureConfig {
 	cfg := StructureConfig{Doc: DefaultStructureDoc, Dirs: defaultStructureDirs}
-	loaded := projectconfig.Load(root)
-	if loaded.Config == nil {
+	raw, err := projectconfig.ForProject(root, root)
+	if err != nil {
 		return cfg
 	}
-	if d, ok := loaded.Config["projectStructureDoc"].(string); ok {
+	if d, ok := raw["projectStructureDoc"].(string); ok && d != "" {
 		cfg.Doc = d
 	}
-	if list, ok := loaded.Config["projectStructureDirs"].([]any); ok {
+	if list, ok := raw["projectStructureDirs"].([]any); ok {
 		cfg.Dirs = nil
 		for _, v := range list {
 			if s, ok := v.(string); ok {

@@ -1,6 +1,6 @@
 ---
 status: Done
-subtask_of: plans/initial_port/plan.md
+subtask_of: plans/october_2026/initial_port/plan.md
 ---
 
 # sync, bootstrap, migrate_state, rewrite_paths in Go

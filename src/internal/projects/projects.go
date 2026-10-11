@@ -136,7 +136,7 @@ type rawProject struct {
 	Build                []Command       `json:"build,omitempty"`
 	Install              *Command        `json:"install,omitempty"`
 	DevServer            *Command        `json:"devServer,omitempty"`
-	Checks               []string        `json:"checks,omitempty"`
+	Checks               *[]string       `json:"checks,omitempty"`
 	ExtraChecks          []ExtraCheck    `json:"extraChecks,omitempty"`
 	WorktreeCopyFiles    []string        `json:"worktreeCopyFiles,omitempty"`
 	ProjectStructureDoc  string          `json:"projectStructureDoc,omitempty"`
@@ -153,7 +153,6 @@ func (p Project) MarshalJSON() ([]byte, error) {
 		Build:                p.Build,
 		Install:              p.Install,
 		DevServer:            p.DevServer,
-		Checks:               p.Checks,
 		ExtraChecks:          p.ExtraChecks,
 		WorktreeCopyFiles:    p.WorktreeCopyFiles,
 		ProjectStructureDoc:  p.ProjectStructureDoc,
@@ -161,6 +160,9 @@ func (p Project) MarshalJSON() ([]byte, error) {
 		Agents:               p.Agents,
 		PlanTemplate:         p.PlanTemplate,
 		Instructions:         p.Instructions,
+	}
+	if p.Checks != nil {
+		raw.Checks = &p.Checks
 	}
 	if !p.Tests.IsEmpty() {
 		raw.Tests = &p.Tests
@@ -183,7 +185,9 @@ func (p *Project) UnmarshalJSON(b []byte) error {
 	p.Build = raw.Build
 	p.Install = raw.Install
 	p.DevServer = raw.DevServer
-	p.Checks = raw.Checks
+	if raw.Checks != nil {
+		p.Checks = *raw.Checks
+	}
 	p.ExtraChecks = raw.ExtraChecks
 	p.WorktreeCopyFiles = raw.WorktreeCopyFiles
 	p.ProjectStructureDoc = raw.ProjectStructureDoc
@@ -199,7 +203,7 @@ func (p Project) HasConfig() bool {
 		len(p.Build) > 0 ||
 		p.Install != nil ||
 		p.DevServer != nil ||
-		len(p.Checks) > 0 ||
+		p.Checks != nil ||
 		len(p.ExtraChecks) > 0 ||
 		len(p.WorktreeCopyFiles) > 0 ||
 		p.ProjectStructureDoc != "" ||

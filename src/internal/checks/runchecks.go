@@ -1,6 +1,8 @@
 package checks
 
 import (
+	"bytes"
+	"sync"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -8,9 +10,11 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 
+	"work_dot_bat/src/internal/immediate"
 	"work_dot_bat/src/internal/planclaims"
 	"work_dot_bat/src/internal/planstatus"
 	"work_dot_bat/src/internal/proc"
@@ -44,23 +48,42 @@ type Config struct {
 	Tests       *projects.TestsConfig `json:"-"`
 }
 
-// LoadConfig reads <root>/work_dot_bat.config.json.
+// LoadConfig reads <root>/work_dot_bat.config.json, falling back to projects.json.
 func LoadConfig(root string) (Config, error) {
 	file := filepath.Join(root, projectconfig.ConfigFile)
 	b, err := os.ReadFile(file)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return Config{}, fmt.Errorf("No %s in %s", projectconfig.ConfigFile, root)
+	if err == nil {
+		var c Config
+		if err := json.Unmarshal(b, &c); err != nil {
+			return Config{}, fmt.Errorf("Cannot parse %s: %v", file, err)
 		}
+		var raw map[string]json.RawMessage
+		if json.Unmarshal(b, &raw) == nil {
+			_, c.ChecksSet = raw["checks"]
+		}
+		return c, nil
+	}
+	if !os.IsNotExist(err) {
 		return Config{}, err
 	}
+	raw, err := projectconfig.ForProject(root, root)
+	if err != nil {
+		return Config{}, fmt.Errorf("No %s in %s", projectconfig.ConfigFile, root)
+	}
+	b, _ = json.Marshal(raw)
 	var c Config
 	if err := json.Unmarshal(b, &c); err != nil {
-		return Config{}, fmt.Errorf("Cannot parse %s: %v", file, err)
+		return Config{}, fmt.Errorf("Cannot parse config for %s: %v", root, err)
 	}
-	var raw map[string]json.RawMessage
-	if json.Unmarshal(b, &raw) == nil {
-		_, c.ChecksSet = raw["checks"]
+	var keys map[string]json.RawMessage
+	if json.Unmarshal(b, &keys) == nil {
+		_, c.ChecksSet = keys["checks"]
+	}
+	regFile := projects.DefaultRegistryFile()
+	if list, _, err := projects.LoadRegistry(regFile); err == nil {
+		if proj := projects.FindProjectByPath(list, root); proj != nil && !proj.Tests.IsEmpty() {
+			c.Tests = &proj.Tests
+		}
 	}
 	return c, nil
 }
@@ -92,6 +115,10 @@ type Env struct {
 	Run          func(ctx context.Context, c Check, cwd string) int
 	RegistryFile string
 	Projects     []projects.Project
+
+	// capture, when set, receives everything written to Out and Err (RunAutomatedTests wires it);
+	// RunChecksDetailed uses it to keep each failing check's output.
+	capture *syncBuf
 }
 
 func (e Env) now() time.Time {
@@ -161,7 +188,12 @@ func (e Env) native(id string, noTighten bool) func(context.Context, string) int
 	}
 	script := nodeCheckScripts[id]
 	return func(ctx context.Context, cwd string) int {
+		// A synced target repo holds the script under scripts/work_dot_bat; this tool's own repo
+		// keeps the same files under .tools.
 		path := filepath.Join(cwd, "scripts", "work_dot_bat", "typescript", script+".mjs")
+		if _, err := os.Stat(path); err != nil {
+			path = filepath.Join(cwd, ".tools", "typescript", script+".mjs")
+		}
 		if _, err := os.Stat(path); err != nil {
 			fmt.Fprintf(e.Err, "%s not found in %s — run `work_dot_bat sync` (this check runs under Node).\n", script, cwd)
 			return 1
@@ -187,7 +219,7 @@ func (e Env) runCommand(ctx context.Context, c Check, cwd string) int {
 			name, args = "sh", []string{"-c", line}
 		}
 	}
-	code, err := proc.Run(ctx, name, args, proc.Options{Dir: cwd, Env: c.Env})
+	code, err := proc.Run(ctx, name, args, proc.Options{Dir: cwd, Env: c.Env, Stdout: e.Out, Stderr: e.Err})
 	if err != nil {
 		return 1
 	}
@@ -266,15 +298,55 @@ func (e Env) BuildCheckList(c Config, noTighten bool, targetLayers ...string) []
 // anything before them has failed, rather than running against known-broken ground. Stdin is
 // closed for every check: a child that can read it can block waiting for a human.
 func (e Env) RunChecks(ctx context.Context, checks []Check, cwd string) (failures, skipped []string) {
+	for _, r := range e.RunChecksDetailed(ctx, checks, cwd) {
+		switch r.State {
+		case StateFailed:
+			failures = append(failures, r.Name)
+		case StateSkipped:
+			skipped = append(skipped, r.Name)
+		}
+	}
+	return failures, skipped
+}
+
+// State is how one check ended.
+type State int
+
+const (
+	StatePassed State = iota
+	StateFailed
+	StateSkipped
+)
+
+// Result is one check's outcome. Output is only kept for a failed check, and only when the Env
+// captures it (RunAutomatedTests does).
+type Result struct {
+	Name, Command, Output string
+	State                 State
+}
+
+// RunChecksDetailed is RunChecks with a result per check, in order.
+func (e Env) RunChecksDetailed(ctx context.Context, checks []Check, cwd string) []Result {
 	log := func(format string, a ...any) { fmt.Fprintf(e.Out, format+"\n", a...) }
+	var results []Result
+	var failures, skipped []string
 	for _, c := range checks {
+		res := Result{Name: c.Name, Command: c.Name}
+		if c.Cmd != "" {
+			res.Command = FormatCommand(Command{Cmd: c.Cmd, Args: c.Args})
+		}
 		if (c.Phase == "unit" || c.Phase == "e2e" || c.Phase == "test") && len(failures) > 0 {
 			log("\n--- %s ---", c.Name)
 			log("⏭️  Skipped — %d earlier check(s) failed: %s", len(failures), strings.Join(failures, ", "))
 			skipped = append(skipped, c.Name)
+			res.State = StateSkipped
+			results = append(results, res)
 			continue
 		}
 		log("\n--- %s ---", c.Name)
+		if e.capture != nil {
+			e.capture.Reset()
+		}
 		var code int
 		if c.Native != nil {
 			code = c.Native(ctx, cwd)
@@ -282,11 +354,16 @@ func (e Env) RunChecks(ctx context.Context, checks []Check, cwd string) (failure
 			code = e.runCommand(ctx, c, cwd)
 		}
 		if code != 0 {
+			if e.capture != nil {
+				res.Output = e.capture.String()
+			}
 			log("❌ %s failed.", c.Name)
 			failures = append(failures, c.Name)
+			res.State = StateFailed
 		} else {
 			log("✅ %s passed.", c.Name)
 		}
+		results = append(results, res)
 	}
 	log("\n===================================================")
 	if len(failures) == 0 {
@@ -304,7 +381,31 @@ func (e Env) RunChecks(ctx context.Context, checks []Check, cwd string) (failure
 		}
 	}
 	log("===================================================\n")
-	return failures, skipped
+	return results
+}
+
+// syncBuf is a mutex-guarded buffer: a child's stdout and stderr copy into it concurrently.
+type syncBuf struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *syncBuf) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *syncBuf) Reset() {
+	b.mu.Lock()
+	b.buf.Reset()
+	b.mu.Unlock()
+}
+
+func (b *syncBuf) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
 }
 
 // Options are run-checks' flags.
@@ -479,7 +580,20 @@ func (e Env) Dispatch(ctx context.Context, name string, args []string) (code int
 // from cwd, falling back to projectRoot's copy for a worktree that has not committed it yet.
 // If tests are configured in the project registry (projects.json), those layer commands are executed,
 // falling back to legacy work_dot_bat.config.json test commands when not defined.
+//
+// When cwd is the project root itself, failures are recorded in the immediate plan
+// (agent_docs/plans/immediate.md) and passes clear them; see package immediate.
 func (e Env) RunAutomatedTests(ctx context.Context, cwd, projectRoot string, targetLayers ...string) []string {
+	buf := &syncBuf{}
+	e.capture = buf
+	e.Out = io.MultiWriter(e.Out, buf)
+	e.Err = io.MultiWriter(e.Err, buf)
+	recordsImmediate := projects.SamePath(cwd, projectRoot)
+	reportImmediate := func(err error) {
+		if err != nil {
+			fmt.Fprintf(e.Err, "(could not update %s: %v)\n", immediate.Plan, err)
+		}
+	}
 	fmt.Fprintln(e.Out, "\n=== Running automated tests (build, checks and test suites from the project config) ===")
 	if cwd != projectRoot {
 		fmt.Fprintf(e.Out, "(in %s)\n", cwd)
@@ -487,12 +601,18 @@ func (e Env) RunAutomatedTests(ctx context.Context, cwd, projectRoot string, tar
 	raw, err := projectconfig.ForProject(cwd, projectRoot)
 	if err != nil {
 		fmt.Fprintln(e.Err, err.Error())
+		if recordsImmediate {
+			reportImmediate(immediate.Record(projectRoot, []immediate.Failure{{Name: "Project config", Command: "project config", Output: buf.String()}}))
+		}
 		return []string{"Project config"}
 	}
 	b, _ := json.Marshal(raw)
 	var cfg Config
 	if err := json.Unmarshal(b, &cfg); err != nil {
 		fmt.Fprintln(e.Err, err.Error())
+		if recordsImmediate {
+			reportImmediate(immediate.Record(projectRoot, []immediate.Failure{{Name: "Project config", Command: "project config", Output: err.Error()}}))
+		}
 		return []string{"Project config"}
 	}
 	var keys map[string]json.RawMessage
@@ -538,6 +658,30 @@ func (e Env) RunAutomatedTests(ctx context.Context, cwd, projectRoot string, tar
 		cfg.Tests = &proj.Tests
 	}
 
-	failures, _ := e.RunChecks(ctx, e.BuildCheckList(cfg, false, targetLayers...), cwd)
+	list := e.BuildCheckList(cfg, false, targetLayers...)
+	results := e.RunChecksDetailed(ctx, list, cwd)
+	var failures []string
+	var failed []immediate.Failure
+	passed := []string{"Project config"}
+	for _, r := range results {
+		switch r.State {
+		case StateFailed:
+			failures = append(failures, r.Name)
+			failed = append(failed, immediate.Failure{Name: r.Name, Command: r.Command, Output: r.Output})
+		case StatePassed:
+			passed = append(passed, r.Name)
+		}
+	}
+	if recordsImmediate {
+		// A recorded non-test check that is no longer configured cannot fail any more, so it is
+		// obsolete. Test tiers ("[tier] ...") depend on the layer run and are never assumed gone.
+		for _, name := range immediate.Recorded(projectRoot) {
+			if !strings.HasPrefix(name, "[") && !slices.ContainsFunc(list, func(c Check) bool { return c.Name == name }) {
+				passed = append(passed, name)
+			}
+		}
+		reportImmediate(immediate.Clear(projectRoot, passed))
+		reportImmediate(immediate.Record(projectRoot, failed))
+	}
 	return failures
 }

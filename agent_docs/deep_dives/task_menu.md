@@ -17,6 +17,16 @@ Go port of the Node launcher's "Step 1" menu (`selectTask` in `src/lib/work-comm
 
 `create_worktree`'s plan mode uses this menu (`worktree.App.pickPlan`).
 
+# Immediate plan (`internal/immediate`)
+
+`agent_docs/plans/immediate.md` is a fixed, one-slot inbox for failed automations.
+
+- **Recording** — `checks.Env.RunAutomatedTests` (the one entry the push gate, loop mode, the daemon and the launcher's test options share) captures each failing check's output and calls `immediate.Record`; a pass calls `immediate.Clear`. Each failure is a `## AUTOMATION: <check name>` section (command + output tail, capped at `MaxOutput`); a repeat failure replaces its own section, others are appended. The file is created via `planstatus.Add`; a failure after `Done` starts a fresh body and sets `Not Started` (`In Progress` is kept).
+- **Clearing** — a passing check removes its section; when none remain the Work script sets `Done` through `planstatus.Set` and erases the body (frontmatter kept). A pass of an unrecorded check changes nothing. A recorded non-test check that is no longer in the run's check list (e.g. disabled in the project config) counts as passed, since it can no longer fail; recorded `[tier] ...` test entries are cleared only by their own pass. The agent never sets `Done` (`agentcmd.ImmediatePlanNote` tells it so).
+- **Picking** — `work.App.Run` offers a pending (not `Done`) immediate plan once per run, before the menu, with the notice `Immediate plan pending: picking agent_docs/plans/immediate.md`; backing out returns to the menu. A live claim by another session skips it with a note.
+- **Only the main checkout** — runs in a worktree (the daemon's) never record or clear: that file would pollute the branch's diff, and the daemon retries its own failures. A write failure prints a warning and never changes the gate's result.
+- Loop mode runs after the launcher's pick, so it inherits the choice; the daemon does not pick the immediate plan.
+
 # Agent command and prompt building (`internal/agentcmd`)
 
 Pure port of `agent-settings.mjs` plus the prompt builders from `batch-common.mjs`, `loop-work.mjs` and `work-common.mjs`; argv and prompt text diffed clean against Node. Settings layer defaults, `agent_settings.json` (env `WORK_DOT_BAT_AGENT_SETTINGS`, else in the tool root) and the project's `agents` block, merged key by key. `projects.ToolRoot()` is the shared tool-root lookup. `ChooseAgent` returns `quit` instead of exiting the process.

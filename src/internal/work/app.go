@@ -12,6 +12,7 @@ import (
 	"work_dot_bat/src/internal/agentcmd"
 	"work_dot_bat/src/internal/agentsession"
 	"work_dot_bat/src/internal/batch"
+	"work_dot_bat/src/internal/immediate"
 	"work_dot_bat/src/internal/menu"
 	"work_dot_bat/src/internal/planclaims"
 	"work_dot_bat/src/internal/planstatus"
@@ -133,6 +134,21 @@ func (a App) setStatus(path, status string, human bool) bool {
 	return true
 }
 
+// pickImmediate selects the pending immediate plan ahead of the menu; ok is false when there is
+// none (or another session holds it). The launcher offers it once per run, so backing out of the
+// plan returns to the menu instead of looping.
+func (a App) pickImmediate() (res taskmenu.Result, ok bool) {
+	entry, due, note := immediate.Due(a.Root, a.ClaimEnv.ListTaskClaims(a.Root))
+	if note != "" {
+		a.log(note)
+	}
+	if !due {
+		return taskmenu.Result{}, false
+	}
+	a.log(immediate.Notice())
+	return taskmenu.Result{Task: &taskmenu.Item{Entry: entry}}, true
+}
+
 func (a App) pick() taskmenu.Result {
 	if a.Pick != nil {
 		return a.Pick()
@@ -185,6 +201,7 @@ const (
 // Run is the launcher's main loop; it returns the process exit code.
 func (a App) Run(ctx context.Context) int {
 	a.ClaimEnv.PruneStaleClaims(a.Root, a.log)
+	offeredImmediate := false
 	for {
 		a.log("\n===================================================")
 		a.log("              Agent Work Helper")
@@ -197,7 +214,15 @@ func (a App) Run(ctx context.Context) int {
 				}
 			}
 		}
-		res := a.pick()
+		var res taskmenu.Result
+		picked := false
+		if !offeredImmediate {
+			offeredImmediate = true
+			res, picked = a.pickImmediate()
+		}
+		if !picked {
+			res = a.pick()
+		}
 		if res.Quit {
 			return 0
 		}
@@ -497,6 +522,9 @@ func (a App) workOnTask(ctx context.Context, task *taskmenu.Item, agent *string,
 	prompt := "/" + skill + " " + planPath
 	if special != "" {
 		prompt += " " + special
+	}
+	if task.Path == immediate.Plan || planPath == "agent_docs/"+immediate.Plan {
+		prompt += agentcmd.ImmediatePlanNote
 	}
 	launch := func(prompt string) {
 		if err := a.LaunchInteractiveAgent(ctx, *agent, planPath, prompt); err != nil {

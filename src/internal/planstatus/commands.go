@@ -226,3 +226,35 @@ func HasOpenBacklog(entries []Entry) bool {
 	}
 	return false
 }
+
+// SetBody replaces everything after a plan file's frontmatter block, leaving the block as is.
+// The plan must already carry a status.
+func SetBody(root, entryPath, body string) error {
+	content, ok := readFile(root, entryPath)
+	if !ok || ParseFrontmatter(content).Status == nil {
+		return errf(`No entry found for "%s"`, entryPath)
+	}
+	return write(root, entryPath, SetFrontmatterBody(content, body))
+}
+
+// ReadEntryStatus returns a plan file's status; ok is false when the file is missing or has none.
+func ReadEntryStatus(root, entryPath string) (status string, ok bool) {
+	content, found := readFile(root, entryPath)
+	if !found {
+		return "", false
+	}
+	fm := ParseFrontmatter(content)
+	if fm.Status == nil {
+		return "", false
+	}
+	return *fm.Status, true
+}
+
+// ReadBody returns the text after a plan file's frontmatter block.
+func ReadBody(root, entryPath string) (string, bool) {
+	content, ok := readFile(root, entryPath)
+	if !ok {
+		return "", false
+	}
+	return ParseFrontmatter(content).Body, true
+}

@@ -168,3 +168,70 @@ Writes/updates local `.tools` launchers (`work.bat`, `auto_daemon.bat`, `prepare
   ```
 *(Omit `project=<name>` to install wrappers into all registered project repositories).*
 
+---
+
+## 4. Adding or Updating a Repository
+
+### Adding a New Repository
+
+1. **Register the Project**:
+   Add an entry for the repository in `projects.json` (see `projects.example.json` for schema), or launch `work` without arguments and enter `p` to paste the local repository path.
+
+2. **Bootstrap Tooling, Docs, and Skills (`bootstrap`)**:
+   Prepares the repository to be driven by `work_dot_bat`:
+   - **Windows**:
+     ```cmd
+     .\.tools\work.bat --run bootstrap [project=<name>]
+     ```
+   - **POSIX / Bash**:
+     ```bash
+     ./.tools/work --run bootstrap [project=<name>]
+     ```
+   - **Direct Binary**:
+     ```bash
+     work_dot_bat bootstrap [project=<name>]
+     ```
+   *(Add `--dry-run` to preview changes without writing files).*
+
+   **What `bootstrap` installs:**
+   - **Agent Documentation & Plans**: `agent_docs/00_start_here.md`, `01_overview.md`, `02_project_structure.md`, `plan_template.md`, instructions under `agent_docs/instructions/`, ratchet baselines (`agent_docs/*_baseline.json`), and starter directories (`plans/`, `deep_dives/`, `project_health/`).
+   - **Agent Skills**: Skill definitions in both `.agents/skills/` and `.claude/skills/`.
+   - **Agent Configurations**: `CLAUDE.md`, `GEMINI.md`, and Claude safety hook configuration in `.claude/settings.json`.
+   - **Git Configuration**: `.git/hooks/pre-push` mechanical gate hook and `.gitignore` entry for `.work_dot_bat/`.
+   - **Vendored Scripts**: Automatically syncs tooling wrappers into `scripts/work_dot_bat/`.
+
+3. **Install Repo-Local Launchers (`install-wrappers`)**:
+   Populate `.tools/` launchers directly in the project so you can run `work`, `auto_daemon`, etc., from within the repo:
+   ```cmd
+   .\.tools\work.bat --run install-wrappers project=<name>
+   ```
+
+---
+
+### Updating or Refreshing an Existing Repository
+
+- **Update Vendored Scripts (`sync`)**:
+  Updates the embedded scripts under `scripts/work_dot_bat/` when `work_dot_bat` is updated:
+  - **Windows**:
+    ```cmd
+    .\.tools\work.bat --run sync [project=<name>] [--yes]
+    ```
+  - **POSIX / Bash**:
+    ```bash
+    ./.tools/work --run sync [project=<name>] [--yes]
+    ```
+  *(Omit `--yes` to be prompted before overwriting locally modified scripts; add `--dry-run` to preview).*
+
+- **Update Repo-Local Launchers (`install-wrappers`)**:
+  Refreshes `.tools/` launchers in target repositories:
+  ```cmd
+  .\.tools\work.bat --run install-wrappers [project=<name>]
+  ```
+
+- **Refresh Agent Docs and Skills**:
+  By design, `bootstrap` **never overwrites** existing files to avoid wiping out custom documentation or project-specific instructions (existing files are skipped and reported).
+  To refresh existing files with canonical templates:
+  - Remove or rename the specific files or folders in the target project before re-running `bootstrap`, or
+  - Copy updated files directly from `templates/files/` in this repository (e.g. `templates/files/agent_docs/` or `templates/files/.agents/skills/`).
+
+

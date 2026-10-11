@@ -14,6 +14,7 @@ Agents: read the **Critical Rules** and the **Session Startup Protocol** below, 
 >    - Intentionally not finished, declined or abandoned: flag it to the user, who runs `.tools/plan-status.sh set <path> "Cancelled" --human`.
 >    - Needs a human decision to proceed: `.tools/plan-status.sh set <path> "Blocked - User Input Required"`.
 >    - Creating a new plan file under `agent_docs/plans/`: `.tools/plan-status.sh add <path>` (lands as `"Not Started"`). Start from `agent_docs/plan_template.md`.
+>    - **Exception — `agent_docs/plans/immediate.md`** (the failed-automation inbox): the Work script, never the agent, sets it `"Done"` and erases its body when the automation passes. If you are working it, fix the failures it records and leave its status and content alone.
 >    - Untracked recommendations found in plan files: write each to `agent_docs/plans/agent_suggestions/<name>.md` and register it with `.tools/plan-status.sh add <path>`.
 > 4. **Check for concurrent work before starting a plan**: `.tools/plan-claim.sh check <plan>` and `.tools/plan-status.sh list-tasks`.
 

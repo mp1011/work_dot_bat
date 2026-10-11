@@ -438,6 +438,19 @@ func TestRunChecksMainUsageAndConfigErrors(t *testing.T) {
 	if code := e.RunChecksMain(context.Background(), []string{"--cwd", root}); code != 1 || len(ran) != 1 {
 		t.Errorf("%d %v", code, ran)
 	}
+
+	// Test RunChecksMain with config in projects.json and NO work_dot_bat.config.json
+	regDir := t.TempDir()
+	regFile := filepath.Join(regDir, "projects.json")
+	pRoot := t.TempDir()
+	regContent := `{"projects":[{"name":"regproj","path":"` + filepath.ToSlash(pRoot) + `","build":[{"cmd":"regbuild","args":[]}],"checks":[]}]}`
+	os.WriteFile(regFile, []byte(regContent), 0o644)
+	t.Setenv(projects.RegistryEnv, regFile)
+	ran = nil
+	e.Run = func(_ context.Context, c Check, cwd string) int { ran = append(ran, c.Name); return 0 }
+	if code := e.RunChecksMain(context.Background(), []string{"--cwd", pRoot, "--skip-tests"}); code != 0 || !reflect.DeepEqual(ran, []string{"Build: regbuild"}) {
+		t.Errorf("%d %v", code, ran)
+	}
 }
 
 func TestNodeBackedChecksNeedTheSyncedScript(t *testing.T) {

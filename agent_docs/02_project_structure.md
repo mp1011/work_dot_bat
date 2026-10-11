@@ -53,6 +53,7 @@ This is a practical map of the repository. Summaries are intentionally brief.
     - `agentcmd\`
       - `agentcmd.go` - <!-- TODO: summarize -->
       - `agentcmd_test.go` - <!-- TODO: summarize -->
+      - `definition.go` - <!-- TODO: summarize -->
     - `agentsession\`
       - `agentsession_test.go` - <!-- TODO: summarize -->
       - `analysis.go` - <!-- TODO: summarize -->
