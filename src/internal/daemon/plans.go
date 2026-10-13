@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 
-	"work_dot_bat/src/internal/planclaims"
 	"work_dot_bat/src/internal/planstatus"
 )
 
@@ -250,22 +249,11 @@ type Result struct {
 type Inputs struct {
 	// Committed reports whether the plan file is git-tracked and clean; nil = everything is.
 	Committed func(Plan) bool
-	// Claims are the current claims; only live plan-scope claims block a plan.
-	Claims []planclaims.Listed
-}
-
-func hasLiveClaim(path string, claims []planclaims.Listed) bool {
-	for _, c := range claims {
-		if c.Scope == "plan" && c.ID == path && c.Decision.State == planclaims.Held {
-			return true
-		}
-	}
-	return false
 }
 
 // Eligibility applies the rules in order: auto (or auto ancestor); no subtasks of its own; status
 // Not Started/In Progress; plan file committed; every earlier sibling resolved; depends_on
-// targets Ready for Review or Done; no live claim.
+// targets Ready for Review or Done.
 func Eligibility(plans []Plan, in Inputs) Result {
 	var eligible, blocked []Plan
 	reasons := map[string]string{}
@@ -331,10 +319,6 @@ func Eligibility(plans []Plan, in Inputs) Result {
 				reasons[e.Path] = depReason
 				continue
 			}
-		}
-		if hasLiveClaim(e.Path, in.Claims) {
-			reasons[e.Path] = "plan is claimed"
-			continue
 		}
 		eligible = append(eligible, e)
 	}

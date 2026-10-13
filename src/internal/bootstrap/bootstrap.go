@@ -329,7 +329,7 @@ func Apply(root string, actions []Action) ([]Action, error) {
 			if len(prior) > 0 && !strings.HasSuffix(string(prior), "\n") {
 				sep = "\n"
 			}
-			text := string(prior) + sep + "\n# work_dot_bat runtime state (claims, session ledger, logs)\n" + repo.StateDirName + "/\n"
+			text := string(prior) + sep + "\n# work_dot_bat runtime state (session ledger, logs)\n" + repo.StateDirName + "/\n"
 			if err := os.WriteFile(full(".gitignore"), []byte(text), 0o644); err != nil {
 				return done, err
 			}

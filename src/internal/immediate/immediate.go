@@ -192,17 +192,13 @@ func renderBody(sections []section) string {
 	return b.String()
 }
 
-// Due says whether the plan should be picked ahead of everything else. A pending plan that
-// another session holds a live claim on is not picked; note then says why (empty otherwise).
-func Due(root string, claims map[string]planstatus.TaskClaim) (entry planstatus.Entry, due bool, note string) {
+// Due says whether the plan should be picked ahead of everything else.
+func Due(root string) (entry planstatus.Entry, due bool) {
 	status, ok := planstatus.ReadEntryStatus(root, Plan)
 	if !ok || status == "Done" {
-		return planstatus.Entry{}, false, ""
+		return planstatus.Entry{}, false
 	}
-	if c, held := claims[Plan]; held && c.Held {
-		return planstatus.Entry{}, false, fmt.Sprintf("Immediate plan pending but not picked: %s (%s)", Plan, c.Text)
-	}
-	return planstatus.Entry{Path: Plan, Status: status}, true, ""
+	return planstatus.Entry{Path: Plan, Status: status}, true
 }
 
 // Notice is the line printed when the plan is picked.

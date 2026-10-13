@@ -9,11 +9,9 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
-
-	"work_dot_bat/src/internal/planclaims"
 )
 
-// New wires an App to the real process: stdin for prompts, out for output, real git, claims and
+// New wires an App to the real process: stdin for prompts, out for output, real git and
 // agent processes.
 func New(root, projectName string, in io.Reader, out io.Writer) App {
 	reader := bufio.NewReader(in)
@@ -28,7 +26,6 @@ func New(root, projectName string, in io.Reader, out io.Writer) App {
 			}
 			return strings.TrimRight(line, "\r\n"), true
 		},
-		ClaimEnv: planclaims.DefaultEnv(),
 	}
 }
 
@@ -42,7 +39,7 @@ func isTerminal(w io.Writer) bool {
 }
 
 // Main runs the launcher until the user quits. A SIGTERM cancels the context, which kills the
-// agent and lets the deferred claim release run; Ctrl-C belongs to the agent while it runs.
+// agent; Ctrl-C belongs to the agent while it runs.
 func Main(root, projectName string, in io.Reader, out io.Writer, runTests func(ctx context.Context, cwd string, layers ...string) []string) int {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM)
 	defer stop()

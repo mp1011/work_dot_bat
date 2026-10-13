@@ -30,7 +30,7 @@ Start every session by reading **only**:
 - `.agents/` — Agent skills
 - `.claude/` — Claude configuration and skills
 - `.tools/` — Runnable scripts and tools (both user and agent commands)
-- `.work_dot_bat/` — Internal runtime state (claims, logs, session ledger)
+- `.work_dot_bat/` — Internal runtime state (logs, session ledger)
 - `agent_docs/` — Agent documentation and plans
 - `dist/` — Compiled release binaries (gitignored)
 - `src/` — Go codebase (`src/cmd/`, `src/internal/`, `src/vendor/`)

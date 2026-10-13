@@ -146,8 +146,8 @@ func BuildDaemonWorkPrompt(planPath, daemonDoc string) string {
 		"/do-work-yolo " + planPath,
 		"",
 		"DAEMON MODE",
-		"The daemon manages claims, branches, git commits, and review status.",
-		"Skip Step Zero entirely. Do not run plan-status.sh or plan-claim.sh.",
+		"The daemon manages branches, git commits, and review status.",
+		"Skip Step Zero entirely. Do not run plan-status.sh.",
 		"Do not commit or push.",
 		"Follow the DAEMON MODE instructions in " + daemonDoc + ".",
 		outcomeFooter,
@@ -196,7 +196,7 @@ func (p Problem) lines() []string {
 func BuildDaemonFollowupPrompt(planPath string, p Problem, attempt, maxAttempts int) string {
 	lines := []string{fmt.Sprintf("Follow-up on %s (attempt %d of %d).", planPath, attempt, maxAttempts), "", "DAEMON MODE", ""}
 	lines = append(lines, p.lines()...)
-	lines = append(lines, "", "Do not commit or push. Do not run plan-status.sh or plan-claim.sh.",
+	lines = append(lines, "", "Do not commit or push. Do not run plan-status.sh.",
 		"Finish with exactly one final line:", "AUTO_OUTCOME: done | subtasks | blocked — <reason>")
 	return strings.Join(lines, "\n")
 }
@@ -216,8 +216,8 @@ func BuildDaemonContinuationPrompt(planPath, daemonDoc string, p Problem, attemp
 	lines := []string{first, "", "DAEMON MODE", why + " the uncommitted changes in this worktree are your own earlier work — continue.", ""}
 	lines = append(lines, p.lines()...)
 	lines = append(lines, "",
-		"The daemon manages claims, branches, git commits, and review status.",
-		"Skip Step Zero entirely. Do not run plan-status.sh or plan-claim.sh.",
+		"The daemon manages branches, git commits, and review status.",
+		"Skip Step Zero entirely. Do not run plan-status.sh.",
 		"Do not commit or push.",
 		"Follow the DAEMON MODE instructions in "+daemonDoc+".",
 		outcomeFooter)

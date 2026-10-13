@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"work_dot_bat/src/internal/agentcmd"
@@ -24,7 +23,7 @@ type AgentRunner func(ctx context.Context, c agentcmd.Command, dir string) (int,
 // ExecAgent is the real AgentRunner. The child gets this process's stdin/stdout/stderr
 // unmodified (os.File handles, so no copying goroutine can swallow input). A Ctrl-C reaches the
 // child through the shared terminal; this process ignores it for the child's lifetime so the
-// deferred claim release still runs.
+// agent session is still recorded when it ends.
 func ExecAgent(ctx context.Context, c agentcmd.Command, dir string) (int, error) {
 	cmd := exec.CommandContext(ctx, c.Cmd, c.Args...)
 	cmd.Dir = dir
@@ -49,37 +48,12 @@ func ExecAgent(ctx context.Context, c agentcmd.Command, dir string) (int, error)
 	return 1, nil
 }
 
-// GuardInterrupt makes Ctrl-C a no-op for this process until the returned stop is called, so a
-// held claim is released by the normal deferred path instead of dying with the terminal's
-// interrupt. Use it around any acquire…release span.
+// GuardInterrupt makes Ctrl-C a no-op for this process until the returned stop is called, so
+// deferred cleanup runs instead of dying with the terminal's interrupt.
 func GuardInterrupt() (stop func()) {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
 	return func() { signal.Stop(sig) }
-}
-
-// AcquireLeafClaim takes the plan/branch claim as the launcher, recording this process's own
-// pid so a claim leaked by a crash is pid-reclaimable instead of bound to the 4h TTL.
-func (a App) AcquireLeafClaim(planPath string) bool {
-	return a.claims().Run([]string{"acquire", planPath, "--owner", "work", "--kind", "launcher",
-		"--pid", strconv.Itoa(a.ClaimEnv.PID)}) == 0
-}
-
-func (a App) ReleaseLeafClaim(planPath string) {
-	a.claims().Run([]string{"release", planPath})
-}
-
-// WithClaim runs fn while holding the leaf plan's claim; the release is deferred, so it also
-// runs when fn panics. held is false when the claim was refused (fn is not run).
-func (a App) WithClaim(planPath string, fn func()) (held bool) {
-	stop := a.guard()
-	defer stop()
-	if !a.AcquireLeafClaim(planPath) {
-		return false
-	}
-	defer a.ReleaseLeafClaim(planPath)
-	fn()
-	return true
 }
 
 // session runs the agent once under a recorded ledger session and classifies how it ended.
@@ -102,7 +76,7 @@ func (a App) session(ctx context.Context, agent, planPath string, attempt *int, 
 	if def.Session.LogFile {
 		start["logFile"] = logFile
 	}
-	if _, err := agentsession.RecordStart(ledger, start, a.ClaimEnv.PID, a.now()); err != nil {
+	if _, err := agentsession.RecordStart(ledger, start, os.Getpid(), a.now()); err != nil {
 		return agentsession.Verdict{}, err
 	}
 	if announce != nil {

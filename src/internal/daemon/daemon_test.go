@@ -11,7 +11,6 @@ import (
 	"time"
 	"work_dot_bat/src/internal/proc"
 
-	"work_dot_bat/src/internal/planclaims"
 	"work_dot_bat/src/internal/planstatus"
 )
 
@@ -48,15 +47,9 @@ func TestEligibilityOrderingAndReasons(t *testing.T) {
 		plan("plans/p/03.md", "Not Started", sub("plans/p/plan.md")),
 		plan("plans/f_dep.md", "Not Started", auto, dep("plans/b_ns.md")),
 		plan("plans/g_uncommitted.md", "Not Started", auto),
-		plan("plans/h_claimed.md", "Not Started", auto),
-	}
-	claims := []planclaims.Listed{
-		{Claim: planclaims.Claim{Scope: "plan", ID: "plans/h_claimed.md"}, Decision: planclaims.Decision{State: planclaims.Held}},
-		{Claim: planclaims.Claim{Scope: "plan", ID: "plans/b_ns.md"}, Decision: planclaims.Decision{State: planclaims.StaleReclaimable}},
 	}
 	res := Eligibility(plans, Inputs{
 		Committed: func(p Plan) bool { return p.Path != "plans/g_uncommitted.md" },
-		Claims:    claims,
 	})
 	// In Progress first, then Not Started, each by path.
 	if got := paths(res.Eligible); !reflect.DeepEqual(got, []string{"plans/c_ip.md", "plans/b_ns.md", "plans/p/02.md"}) {
@@ -73,7 +66,6 @@ func TestEligibilityOrderingAndReasons(t *testing.T) {
 		"plans/p/03.md":          "earlier subtask plans/p/02.md (Not Started)",
 		"plans/f_dep.md":         "depends_on plans/b_ns.md (Not Started)",
 		"plans/g_uncommitted.md": "uncommitted changes in plan file",
-		"plans/h_claimed.md":     "plan is claimed",
 	}
 	for p, w := range want {
 		if res.Reasons[p] != w {
@@ -211,8 +203,8 @@ func TestParseAssessment(t *testing.T) {
 
 func TestPrompts(t *testing.T) {
 	work := BuildDaemonWorkPrompt("agent_docs/plans/x.md", "doc.md")
-	want := "/do-work-yolo agent_docs/plans/x.md\n\nDAEMON MODE\nThe daemon manages claims, branches, git commits, and review status.\n" +
-		"Skip Step Zero entirely. Do not run plan-status.sh or plan-claim.sh.\nDo not commit or push.\n" +
+	want := "/do-work-yolo agent_docs/plans/x.md\n\nDAEMON MODE\nThe daemon manages branches, git commits, and review status.\n" +
+		"Skip Step Zero entirely. Do not run plan-status.sh.\nDo not commit or push.\n" +
 		"Follow the DAEMON MODE instructions in doc.md.\nFinish with exactly one final line:\nAUTO_OUTCOME: done\nAUTO_OUTCOME: subtasks\nAUTO_OUTCOME: blocked — <one-line reason>"
 	if work != want {
 		t.Errorf("%q", work)

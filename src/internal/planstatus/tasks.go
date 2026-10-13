@@ -6,57 +6,33 @@ import (
 	"strings"
 )
 
-// TaskClaim is a live claim on a plan, as list-tasks shows it. Text is the rendered
-// "CLAIMED by <kind> (pid N) <age> ago" phrase; the claims package builds it.
-type TaskClaim struct {
-	Held bool
-	Text string
-}
-
-// ClaimsByPlan returns every plan-scope claim keyed by plan path.
-type ClaimsByPlan func(root string) map[string]TaskClaim
-
 type Task struct {
 	Entry
-	Claim *TaskClaim
 }
 
 // OverlaidEntries is every tracked plan overlaid with worktree status.
 func (c CLI) OverlaidEntries() []Entry { return c.overlaid() }
 
 // ListOpenTasks is the open backlog overlaid with worktree status (so a plan finished on a
-// branch reads as its effective status) and annotated with any claim. Filtering open/closed
-// happens after the overlay.
+// branch reads as its effective status). Filtering open/closed happens after the overlay.
 func (c CLI) ListOpenTasks() []Task {
-	var claims map[string]TaskClaim
-	if c.Claims != nil {
-		claims = c.Claims(c.Root)
-	}
 	var tasks []Task
 	for _, e := range c.OverlaidEntries() {
 		if e.Status == "Done" || e.Status == "Cancelled" || e.Status == "Suggestion" {
 			continue
 		}
-		t := Task{Entry: e}
-		if cl, ok := claims[e.Path]; ok {
-			t.Claim = &cl
-		}
-		tasks = append(tasks, t)
+		tasks = append(tasks, Task{Entry: e})
 	}
 	return tasks
 }
 
-// FormatTaskLine renders "[status @ branch] path" plus a "  — CLAIMED by ..." suffix when held.
+// FormatTaskLine renders "[status @ branch] path" .
 func FormatTaskLine(t Task) string {
 	branch := ""
 	if t.WorktreeBranch != "" {
 		branch = " @ " + t.WorktreeBranch
 	}
-	line := fmt.Sprintf("[%s%s] %s", t.Status, branch, t.Path)
-	if t.Claim != nil && t.Claim.Held {
-		line += "  — " + t.Claim.Text
-	}
-	return line
+	return fmt.Sprintf("[%s%s] %s", t.Status, branch, t.Path)
 }
 
 // RenderTaskList is the numbered backlog plus an unnumbered footer when suggestions are parked.
@@ -84,7 +60,7 @@ func (c CLI) listTasks(rest []string) {
 		if a == "--free" {
 			var free []Task
 			for _, t := range tasks {
-				if t.Status == "Not Started" && (t.Claim == nil || !t.Claim.Held) {
+				if t.Status == "Not Started" {
 					free = append(free, t)
 				}
 			}

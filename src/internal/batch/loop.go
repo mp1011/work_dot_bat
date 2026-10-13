@@ -56,8 +56,6 @@ type LoopRun struct {
 	// RunAgent runs the agent non-interactively; attempt is 1-based.
 	RunAgent     func(prompt, planPath string, attempt int) AgentResult
 	RunTests     func(layers ...string) []string
-	AcquireClaim func(planPath string) bool // nil = no claims
-	ReleaseClaim func(planPath string)
 	ReadPlan     func(planPath string) string
 	UpdateStatus func(path, status string) bool
 	OnLog        func(string)
@@ -65,7 +63,7 @@ type LoopRun struct {
 
 type LoopResult struct {
 	Success  bool
-	Reason   string // claim-blocked | rate-limited | status-not-ready | tests-failed
+	Reason   string // rate-limited | status-not-ready | tests-failed
 	Task     planstatus.Entry
 	Failures []string
 }
@@ -90,9 +88,9 @@ func find(tasks []planstatus.Entry, path string) (planstatus.Entry, bool) {
 }
 
 // RunLoopUntilDone works every eligible subtask of the parent in order, then the parent itself,
-// each non-interactively under the launcher's claim: invoke the work skill, retry once if the
+// each non-interactively: invoke the work skill, retry once if the
 // plan is not Ready for Review, run the automated tests with up to two fix-ups, and stop at the
-// first thing that needs a human. The claim is released on every exit from an iteration.
+// first thing that needs a human.
 func RunLoopUntilDone(r LoopRun) LoopResult {
 	logf := r.OnLog
 	if logf == nil {
@@ -118,23 +116,13 @@ func RunLoopUntilDone(r LoopRun) LoopResult {
 		logf("===================================================")
 
 		planPath := agentDocsPath(target.Path)
-		if r.AcquireClaim != nil && !r.AcquireClaim(planPath) {
-			logf(fmt.Sprintf("\n[MANUAL INTERVENTION REQUIRED] Could not acquire claim for \"%s\" (held by someone else). Ending loop.", planPath))
-			return LoopResult{Reason: "claim-blocked", Task: target}
-		}
-		res, done := func() (LoopResult, bool) {
-			if r.ReleaseClaim != nil {
-				defer r.ReleaseClaim(planPath) // also on a panic
-			}
-			return runIteration(r, target, planPath, isParentRun, logf, ratelimited)
-		}()
-		if done {
+		if res, done := runIteration(r, target, planPath, isParentRun, logf, ratelimited); done {
 			return res
 		}
 	}
 }
 
-// runIteration is one pass of the loop with the claim held. done is true when the loop ends
+// runIteration is one pass of the loop. done is true when the loop ends
 // (with res); false means carry on to the next task.
 func runIteration(r LoopRun, target planstatus.Entry, planPath string, isParentRun bool, logf func(string),
 	ratelimited func(planstatus.Entry) LoopResult) (res LoopResult, done bool) {

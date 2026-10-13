@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"work_dot_bat/src/internal/menu"
-	"work_dot_bat/src/internal/planclaims"
 	"work_dot_bat/src/internal/planstatus"
 	"work_dot_bat/src/internal/projects"
 	"work_dot_bat/src/internal/repo"
@@ -76,9 +75,6 @@ func run(argv []string, e env) int {
 	}
 	if len(argv) > 0 && argv[0] == "list-tasks" {
 		return runPlanStatus(argv, e)
-	}
-	if len(argv) > 0 && argv[0] == "plan-claim" {
-		return runPlanClaim(argv[1:], e)
 	}
 	if len(argv) > 0 && argv[0] == "plan-status" {
 		return runPlanStatus(argv[1:], e)
@@ -150,8 +146,8 @@ func runMenu(list []projects.Project, e env) *projects.Project {
 }
 
 // Repo-level commands act on the git repository of the working directory, with no project
-// registry or "Project:" banner, so their output matches the plan-status.sh / plan-claim.sh
-// scripts they replace.
+// registry or "Project:" banner, so their output matches the plan-status.sh
+// script they replace.
 func gitRoot() (string, bool) {
 	out, err := osexec.Command("git", "rev-parse", "--show-toplevel").Output()
 	if err != nil {
@@ -166,17 +162,7 @@ func runPlanStatus(args []string, e env) int {
 		fmt.Fprintln(e.stderr, "plan-status: not inside a git repository")
 		return 1
 	}
-	return planstatus.CLI{Root: root, Stdout: e.stdout, Stderr: e.stderr, Collect: planstatus.GitCollectWorktreeStatuses,
-		Claims: planclaims.DefaultEnv().ListTaskClaims}.Run(args)
-}
-
-func runPlanClaim(args []string, e env) int {
-	root, ok := gitRoot()
-	if !ok { // the Node CLI falls back to the working directory
-		root, _ = os.Getwd()
-	}
-	return planclaims.CLI{Root: root, Stdout: e.stdout, Stderr: e.stderr, Env: planclaims.DefaultEnv(),
-		Collect: planstatus.GitCollectWorktreeStatuses}.Run(args)
+	return planstatus.CLI{Root: root, Stdout: e.stdout, Stderr: e.stderr, Collect: planstatus.GitCollectWorktreeStatuses}.Run(args)
 }
 
 // runInstallWrappers (re)writes the repo-local .tools wrappers for project=<name>, or for every

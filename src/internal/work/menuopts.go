@@ -1,5 +1,5 @@
 // Package work is the interactive launcher: the Step 2 action menu for a chosen plan, launching
-// the configured agent on it while holding the plan/branch claim, and the small human-only
+// the configured agent on it, and the small human-only
 // workflows (commit, cancel, mark done, set auto).
 package work
 

@@ -35,15 +35,10 @@
       "date": "2026-10-03",
       "sha256": "cd65ed9f32173871a0cf3a19b0ebfc736b44f9826615f1ea5917720f7a3eb160"
     },
-    "scripts/work_dot_bat/plan-claim.sh": {
-      "version": "2.0.0",
-      "date": "2026-10-03",
-      "sha256": "2b0b083769e617ac92db07308de2caf7bd05ba9a698b5a9ca1b401842c1fd431"
-    },
     "scripts/work_dot_bat/plan-status.sh": {
-      "version": "2.0.0",
-      "date": "2026-10-03",
-      "sha256": "52f5b464fc08bfe329985f4db1ed9559d19128a46b757c391058788903f93da7"
+      "version": "2.0.1",
+      "date": "2026-10-12",
+      "sha256": "2d3f5e1955fdeb6c6dc04e17469a65f0b7d055a81825f5d53ce5f0125dd657f1"
     },
     "scripts/work_dot_bat/run-checks.sh": {
       "version": "2.0.0",

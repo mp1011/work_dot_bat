@@ -65,21 +65,6 @@ func TestPauseForRateLimit(t *testing.T) {
 	}
 }
 
-func TestWithClaimRelease(t *testing.T) {
-	var released []string
-	rel := func(p string) { released = append(released, p) }
-	if got := WithClaimRelease("a", rel, func() int { return 7 }); got != 7 || !reflect.DeepEqual(released, []string{"a"}) {
-		t.Errorf("%v %v", got, released)
-	}
-	func() {
-		defer func() { recover() }()
-		WithClaimRelease("b", rel, func() int { panic("boom") })
-	}()
-	if !reflect.DeepEqual(released, []string{"a", "b"}) {
-		t.Errorf("a panic must still release: %v", released)
-	}
-}
-
 type harness struct {
 	prompts  []string
 	attempts []int
@@ -239,15 +224,13 @@ func TestEligibleSubtasksOrderAndFiltering(t *testing.T) {
 
 // loopHarness simulates a plan set that the fake agent mutates.
 type loopHarness struct {
-	t        *testing.T
-	tasks    []planstatus.Entry
-	acquired []string
-	released []string
-	invoked  []string
-	prompts  []string
-	logs     []string
+	t       *testing.T
+	tasks   []planstatus.Entry
+	invoked []string
+	prompts []string
+	logs    []string
 	// agent decides what the fake agent does to the task set for (planPath, attempt, callIndex).
-	agent func(h *loopHarness, planPath string, attempt int) AgentResult
+	agent      func(h *loopHarness, planPath string, attempt int) AgentResult
 	tests      [][]string
 	calls      int
 	layerCalls []string
@@ -284,8 +267,6 @@ func (h *loopHarness) run(parent planstatus.Entry) LoopResult {
 			}
 			return nil
 		},
-		AcquireClaim: func(p string) bool { h.acquired = append(h.acquired, p); return true },
-		ReleaseClaim: func(p string) { h.released = append(h.released, p) },
 		ReadPlan:     func(string) string { return "# Test Plan" },
 		UpdateStatus: func(p, s string) bool { h.set(p, s); return true },
 		OnLog:        func(m string) { h.logs = append(h.logs, m) },
@@ -300,13 +281,13 @@ func threeTaskSet() (planstatus.Entry, []planstatus.Entry) {
 	)
 }
 
-func TestLoopRunsSubtasksThenParentAndReleasesEachClaim(t *testing.T) {
+func TestLoopRunsSubtasksThenParent(t *testing.T) {
 	parent, tasks := threeTaskSet()
 	h := &loopHarness{t: t, tasks: tasks}
 	res := h.run(parent)
 	want := []string{"agent_docs/plans/test/01.md", "agent_docs/plans/test/02.md", "agent_docs/plans/test/plan.md"}
-	if !res.Success || !reflect.DeepEqual(h.acquired, want) || !reflect.DeepEqual(h.released, want) || !reflect.DeepEqual(h.invoked, want) {
-		t.Errorf("%+v\nacquired %v\nreleased %v\ninvoked %v", res, h.acquired, h.released, h.invoked)
+	if !res.Success || !reflect.DeepEqual(h.invoked, want) {
+		t.Errorf("%+v\ninvoked %v", res, h.invoked)
 	}
 	if h.prompts[0] != "/do-work-yolo agent_docs/plans/test/01.md" {
 		t.Errorf("prompt %q", h.prompts[0])
@@ -336,14 +317,13 @@ func TestLoopRetriesOnceWhenNotReadyForReview(t *testing.T) {
 		t.Errorf("retry prompt %q", h.prompts[1])
 	}
 
-	// Still not ready after the retry: stop for a human, claim released.
+	// Still not ready after the retry: stop for a human.
 	parent, tasks = threeTaskSet()
 	h = &loopHarness{t: t, tasks: tasks[:2]}
 	h.agent = func(h *loopHarness, planPath string, attempt int) AgentResult { return AgentResult{} }
 	res = h.run(parent)
-	if res.Success || res.Reason != "status-not-ready" || res.Task.Path != "plans/test/01.md" || len(h.invoked) != 2 ||
-		!reflect.DeepEqual(h.released, []string{"agent_docs/plans/test/01.md"}) {
-		t.Errorf("%+v invoked %v released %v", res, h.invoked, h.released)
+	if res.Success || res.Reason != "status-not-ready" || res.Task.Path != "plans/test/01.md" || len(h.invoked) != 2 {
+		t.Errorf("%+v invoked %v", res, h.invoked)
 	}
 }
 
@@ -368,11 +348,11 @@ func TestLoopTestRetryBudget(t *testing.T) {
 		t.Errorf("fix-ups %q", fixups)
 	}
 
-	// All three fail: stop with the failing checks, claim released.
+	// All three fail: stop with the failing checks.
 	h = &loopHarness{t: t, tasks: append([]planstatus.Entry(nil), tasks...), tests: [][]string{{"lint"}, {"lint"}, {"lint", "unit"}}}
 	res = h.run(parent)
-	if res.Success || res.Reason != "tests-failed" || !reflect.DeepEqual(res.Failures, []string{"lint", "unit"}) || len(h.released) != 1 {
-		t.Errorf("%+v released %v", res, h.released)
+	if res.Success || res.Reason != "tests-failed" || !reflect.DeepEqual(res.Failures, []string{"lint", "unit"}) {
+		t.Errorf("%+v", res)
 	}
 	if !strings.Contains(strings.Join(h.logs, "\n"), "after 3 attempts (all retries exhausted). Failing checks: lint, unit. Ending loop.") {
 		t.Errorf("%v", h.logs)
@@ -386,37 +366,12 @@ func TestLoopTestRetryBudget(t *testing.T) {
 	}
 }
 
-func TestLoopStopsOnUsageLimitAndOnBlockedClaim(t *testing.T) {
+func TestLoopStopsOnUsageLimit(t *testing.T) {
 	parent, tasks := threeTaskSet()
 	h := &loopHarness{t: t, tasks: tasks}
 	h.agent = func(*loopHarness, string, int) AgentResult { return AgentResult{RateLimited: true} }
-	res := h.run(parent)
-	if res.Success || res.Reason != "rate-limited" || len(h.released) != 1 {
-		t.Errorf("%+v released %v", res, h.released)
-	}
-
-	parent, tasks = threeTaskSet()
-	h = &loopHarness{t: t, tasks: tasks}
-	got := RunLoopUntilDone(LoopRun{
-		Parent: parent, GetTasks: func() []planstatus.Entry { return tasks },
-		AcquireClaim: func(string) bool { return false },
-		RunAgent:     func(string, string, int) AgentResult { t.Error("agent must not run"); return AgentResult{} },
-	})
-	if got.Success || got.Reason != "claim-blocked" {
-		t.Errorf("%+v", got)
-	}
-}
-
-func TestLoopReleasesClaimWhenAnIterationPanics(t *testing.T) {
-	parent, tasks := threeTaskSet()
-	h := &loopHarness{t: t, tasks: tasks}
-	h.agent = func(*loopHarness, string, int) AgentResult { panic("boom") }
-	func() {
-		defer func() { recover() }()
-		h.run(parent)
-	}()
-	if len(h.released) != 1 {
-		t.Errorf("released %v", h.released)
+	if res := h.run(parent); res.Success || res.Reason != "rate-limited" {
+		t.Errorf("%+v", res)
 	}
 }
 

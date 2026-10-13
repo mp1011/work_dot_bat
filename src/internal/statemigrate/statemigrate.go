@@ -1,5 +1,5 @@
 // Package statemigrate is the one-time move of a project's runtime state from the old locations
-// (.tools/session_ledger.json, .tools/logs/, .claims/) into the single .work_dot_bat/ folder.
+// (.tools/session_ledger.json, .tools/logs/) into the single .work_dot_bat/ folder.
 // A dry run unless the caller applies the plan.
 package statemigrate
 
@@ -39,7 +39,6 @@ func PlanMigration(root string) Plan {
 	for _, c := range []struct{ rel, to string }{
 		{".tools/session_ledger.json", repo.LedgerPath(root)},
 		{".tools/logs", repo.LogsDir(root)},
-		{".claims", repo.ClaimsDir(root)},
 	} {
 		from := filepath.Join(root, filepath.FromSlash(c.rel))
 		if !exists(from) {

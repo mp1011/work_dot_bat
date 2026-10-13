@@ -30,10 +30,10 @@ To automatically add `bin` to your `PATH`:
 | `auto_status`, `analyze_session`, `reclassify_sessions` | read-only reports on plans and agent sessions (`reclassify_sessions --write` relabels ledger rows) |
 | `sync [--dry-run] [--yes]` | install/update the vendored scripts in `scripts/work_dot_bat/` (never commits) |
 | `bootstrap [--dry-run]` | prepare a repo: agent docs, instructions, skills, safety hook, scripts, baselines, pre-push hook |
-| `migrate_state [--apply]` | move legacy `.tools/` and `.claims/` state into `.work_dot_bat/` |
+| `migrate_state [--apply]` | move legacy `.tools/` state into `.work_dot_bat/` |
 | `rewrite_paths [--apply]` | rewrite old `scripts/<x>.sh` references to `scripts/work_dot_bat/` |
 
-Subcommands that act on the repository containing the current directory (no project needed): `plan-status`, `plan-claim`, `list-tasks`, `worktree-info`, `run-checks [--no-tighten] [--skip-tests] [--cwd <dir>]`, `check-monolith`, `check-duplication`, `check-skills`, `check-audit`, `update-project-structure [--check]`, `safety-hook` (the Claude Code PreToolUse hook), `--version`.
+Subcommands that act on the repository containing the current directory (no project needed): `plan-status`, `list-tasks`, `worktree-info`, `run-checks [--no-tighten] [--skip-tests] [--cwd <dir>]`, `check-monolith`, `check-duplication`, `check-skills`, `check-audit`, `update-project-structure [--check]`, `safety-hook` (the Claude Code PreToolUse hook), `--version`.
 
 ## What target repos receive
 

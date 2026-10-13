@@ -13,7 +13,7 @@ func testMap() []Mapping {
 	m := managed.Manifest{Files: map[string]managed.Entry{
 		"scripts/work_dot_bat/plan-status.sh":        {},
 		"scripts/work_dot_bat/lib/plan-status.mjs":   {},
-		"scripts/work_dot_bat/lib/plan-claims.mjs":   {},
+		"scripts/work_dot_bat/lib/plan-locks.mjs":   {},
 		"scripts/work_dot_bat/run-checks.sh":         {},
 		"scripts/work_dot_bat/lib/nested/deeper.mjs": {},
 	}}
@@ -45,12 +45,12 @@ func TestRewriteText(t *testing.T) {
 	in := strings.Join([]string{
 		"Run `scripts/plan-status.sh set x Done`.",
 		"- run: ./scripts/plan-status.sh check",
-		"import { a } from '../scripts/lib/plan-claims.mjs'",
+		"import { a } from '../scripts/lib/plan-locks.mjs'",
 	}, "\n")
 	out, n := RewriteText(in, m)
 	if n != 3 || !strings.Contains(out, "`scripts/work_dot_bat/plan-status.sh set x Done`") ||
 		!strings.Contains(out, "./scripts/work_dot_bat/plan-status.sh check") ||
-		!strings.Contains(out, "'../scripts/work_dot_bat/lib/plan-claims.mjs'") {
+		!strings.Contains(out, "'../scripts/work_dot_bat/lib/plan-locks.mjs'") {
 		t.Errorf("%d\n%s", n, out)
 	}
 	// Idempotent.

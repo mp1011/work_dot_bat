@@ -12,7 +12,6 @@ import (
 	"work_dot_bat/src/internal/agentcmd"
 	"work_dot_bat/src/internal/agentsession"
 	"work_dot_bat/src/internal/menu"
-	"work_dot_bat/src/internal/planclaims"
 	"work_dot_bat/src/internal/projectconfig"
 	"work_dot_bat/src/internal/repo"
 	"work_dot_bat/src/internal/worktree"
@@ -36,8 +35,7 @@ func Status(c Config) int {
 	wts, _ := worktreeList(c.Root)
 	plans := ReadPlanStates(c.Root, wts, nil)
 	committed := CommittedPlanPaths(c.Root, plans, nil)
-	claims := planclaims.DefaultEnv().ListClaims(c.Root)
-	res := Eligibility(plans, Inputs{Committed: func(p Plan) bool { return committed[p.Path] }, Claims: claims})
+	res := Eligibility(plans, Inputs{Committed: func(p Plan) bool { return committed[p.Path] }})
 	fmt.Fprintln(c.Out, FormatAutoStatusReport(res, plans))
 	return 0
 }
@@ -64,11 +62,7 @@ func Main(c Config) int {
 		return 0
 	}
 
-	env := planclaims.DefaultEnv()
 	stamp := func(msg string) { fmt.Fprintf(c.Out, "[%s] %s\n", timeNow().Format("15:04:05"), msg) }
-	if removed := env.PruneStaleClaims(c.Root, func(m string) { fmt.Fprintln(c.Out, m) }); len(removed) > 0 {
-		stamp(fmt.Sprintf("Pruned %d stale claim(s) at startup.", len(removed)))
-	}
 	label := agentcmd.ProjectSettings(c.Root, c.Root).AgentLabel(agent)
 	stamp(fmt.Sprintf("Starting unattended daemon loop with agent: %s...", label))
 
@@ -76,13 +70,13 @@ func Main(c Config) int {
 	defer stop()
 	go func() {
 		<-ctx.Done()
-		stamp("Received a stop signal. Releasing claims and shutting down...")
+		stamp("Received a stop signal. Shutting down...")
 	}()
 
 	runner := Runner{
 		Root: c.Root, ProjectName: c.ProjectName, Agent: agent,
 		DaemonDoc: projectconfig.DaemonDoc(c.Root, c.Root),
-		Log:       stamp, ClaimEnv: env, Ledger: repo.LedgerPath(c.Root),
+		Log:       stamp, Ledger: repo.LedgerPath(c.Root),
 		Dirs:     agentsession.Dirs{},
 		Settings: func() agentcmd.Settings { return agentcmd.ProjectSettings(c.Root, c.Root) },
 		RunTests: c.RunTests,

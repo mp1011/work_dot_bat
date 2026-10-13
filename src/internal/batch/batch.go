@@ -1,5 +1,5 @@
 // Package batch is the logic shared by loop mode and the auto daemon: the run-agent → run-tests →
-// retry-or-halt loop, usage-limit handling, claim-release wrapping and the run summary. Every
+// retry-or-halt loop, usage-limit handling and the run summary. Every
 // side effect is injected, so none of it needs a real agent or test run.
 package batch
 
@@ -87,9 +87,8 @@ type PlanRun struct {
 	// HasCodeChanges guards "tests pass ⇒ the agent implemented it": an agent that halted
 	// before touching a file leaves the tree green from the previous task, which says nothing
 	// about this run. nil = always assume changes.
-	HasCodeChanges     func() bool
-	LauncherHoldsClaim bool
-	OnTestFailure      func(failures []string, attempt int)
+	HasCodeChanges func() bool
+	OnTestFailure  func(failures []string, attempt int)
 }
 
 // RunPlanWithRetries is the `/do-work-yolo` → test → retry-or-halt loop.
@@ -108,7 +107,7 @@ func RunPlanWithRetries(p PlanRun) RunResult {
 		max = MaxAttempts
 	}
 	logf(fmt.Sprintf("Running /do-work-yolo (attempt 1 of %d)...", max))
-	if r := p.RunAgent(agentcmd.BuildDoWorkYoloPrompt(p.PlanPath, p.LauncherHoldsClaim), 1); r.RateLimited {
+	if r := p.RunAgent(agentcmd.BuildDoWorkYoloPrompt(p.PlanPath, false), 1); r.RateLimited {
 		logf("The agent hit its usage limit — stopping without running tests or spending an attempt.")
 		return RunResult{Outcome: OutcomeRateLimited, ResetAt: r.ResetAt}
 	}
@@ -145,15 +144,6 @@ func RunPlanWithRetries(p PlanRun) RunResult {
 	}
 }
 
-// WithClaimRelease runs work and then releases the plan's claim on every exit, a panic included.
-// A launcher that spawns an agent which acquires its own claim cannot trust that agent to
-// release it (it may be killed or simply never emit the release), so the guarantee that a clean
-// exit leaves no claim behind lives here. Releasing an already-released claim is a no-op.
-func WithClaimRelease[T any](planPath string, release func(planPath string), work func() T) T {
-	defer release(planPath)
-	return work()
-}
-
 // SummaryRow is one plan's final outcome in a batch.
 type SummaryRow struct {
 	Path     string
@@ -166,7 +156,6 @@ var outcomeLabels = map[string]string{
 	"halted":           "Halted (max attempts reached)",
 	"rate-limited":     "Paused (agent usage limit)",
 	"failed":           "Failed",
-	"claimed":          "Claimed (never finished)",
 }
 
 func FormatSummary(rows []SummaryRow) string {

@@ -1,15 +1,11 @@
 package work
 
 import (
-	"bytes"
 	"context"
-	"os"
-	"strconv"
 	"strings"
 	"testing"
 
 	"work_dot_bat/src/internal/immediate"
-	"work_dot_bat/src/internal/planclaims"
 	"work_dot_bat/src/internal/taskmenu"
 )
 
@@ -57,20 +53,3 @@ func TestDoneOrAbsentImmediatePlanLeavesTheMenuAlone(t *testing.T) {
 	}
 }
 
-func TestImmediatePlanHeldBySomeoneElseFallsBackToTheMenu(t *testing.T) {
-	f := newFixture(t)
-	recordFailure(t, f.root)
-	other := planclaims.CLI{Root: f.root, Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}, Env: planclaims.DefaultEnv()}
-	if code := other.Run([]string{"acquire", immediate.Plan, "--owner", "daemon", "--kind", "daemon", "--pid", strconv.Itoa(os.Getppid())}); code != 0 {
-		t.Fatal("could not set up the held claim")
-	}
-	picks := 0
-	f.app.Pick = func() taskmenu.Result { picks++; return taskmenu.Result{Quit: true} }
-	f.app.Run(context.Background())
-	if picks != 1 || len(f.agent) != 0 {
-		t.Errorf("picks=%d agents=%d", picks, len(f.agent))
-	}
-	if !strings.Contains(f.out.String(), "Immediate plan pending but not picked") {
-		t.Errorf("output:\n%s", f.out.String())
-	}
-}

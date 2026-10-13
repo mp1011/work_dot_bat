@@ -173,17 +173,14 @@ func ReclassifyLedger(rows []*Row, classify func(*Row) Verdict) (changed []strin
 	return changed
 }
 
-// ReclassifyOrphans re-labels rows left `in-progress` for longer than maxAge with no active claim
-// as `abandoned`, stamping endedAt with now. A row with an unparseable start counts as ancient.
-func ReclassifyOrphans(rows []*Row, isClaimActive func(*Row) bool, now time.Time, maxAge time.Duration) (changed []string) {
+// ReclassifyOrphans re-labels rows left `in-progress` for longer than maxAge as
+// `abandoned`, stamping endedAt with now. A row with an unparseable start counts as ancient.
+func ReclassifyOrphans(rows []*Row, now time.Time, maxAge time.Duration) (changed []string) {
 	for _, r := range rows {
 		if r.Str("status") != "in-progress" {
 			continue
 		}
 		if started, err := time.Parse(time.RFC3339Nano, r.Str("startedAt")); err == nil && now.Sub(started) < maxAge {
-			continue
-		}
-		if isClaimActive != nil && isClaimActive(r) {
 			continue
 		}
 		changed = append(changed, r.Str("sessionName"))

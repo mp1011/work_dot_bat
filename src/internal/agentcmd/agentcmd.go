@@ -108,9 +108,6 @@ func BuildFailureFollowupPrompt(planPath, planContent string, failures []string,
 	return strings.Join(lines, "\n")
 }
 
-// LauncherClaimNote is retained for compatibility but empty: claims are not managed by the agent prompt.
-const LauncherClaimNote = ""
-
 // ImmediatePlanNote is appended to the prompt for the immediate plan (agent_docs/plans/immediate.md):
 // the Work script owns its status and body, so the agent only fixes the recorded failures.
 const ImmediatePlanNote = "\n\nNote: this is the immediate plan. Fix the failures it records. " +

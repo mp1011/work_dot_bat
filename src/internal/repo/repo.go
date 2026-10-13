@@ -16,7 +16,6 @@ const (
 )
 
 func StateDir(root string) string   { return filepath.Join(root, StateDirName) }
-func ClaimsDir(root string) string  { return filepath.Join(StateDir(root), "claims") }
 func LedgerPath(root string) string { return filepath.Join(StateDir(root), "session_ledger.json") }
 func LogsDir(root string) string    { return filepath.Join(StateDir(root), "logs") }
 

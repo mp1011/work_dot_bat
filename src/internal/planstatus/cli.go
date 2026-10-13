@@ -15,7 +15,6 @@ type CLI struct {
 	Stdout  io.Writer
 	Stderr  io.Writer
 	Collect CollectWorktreeStatuses
-	Claims  ClaimsByPlan // optional: annotates list-tasks with live claims
 	Now     time.Time
 }
 

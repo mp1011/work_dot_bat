@@ -14,7 +14,6 @@ import (
 
 	"work_dot_bat/src/internal/agentcmd"
 	"work_dot_bat/src/internal/agentsession"
-	"work_dot_bat/src/internal/planclaims"
 	"work_dot_bat/src/internal/planstatus"
 	"work_dot_bat/src/internal/repo"
 	"work_dot_bat/src/internal/worktree"
@@ -75,12 +74,11 @@ type Runner struct {
 	Heartbeat   time.Duration
 	Timeout     time.Duration
 
-	Log      func(string)
-	Now      func() time.Time
-	Sleep    func(ctx context.Context, d time.Duration) error
-	ClaimEnv planclaims.Env
-	Dirs     agentsession.Dirs
-	Ledger   string
+	Log    func(string)
+	Now    func() time.Time
+	Sleep  func(ctx context.Context, d time.Duration) error
+	Dirs   agentsession.Dirs
+	Ledger string
 
 	Settings func() agentcmd.Settings
 	// RunAgent, if set, replaces the real agent process (tests).
@@ -97,31 +95,6 @@ type Runner struct {
 	// RunTests runs the project's automated checks in cwd and returns the failing check names.
 	RunTests  func(ctx context.Context, cwd string, layers ...string) []string
 	ReadPlans func(root string) []Plan
-	// OnActiveClaim is told which claim is held so a signal handler can release it.
-	OnActiveClaim func(*ClaimRecord)
-}
-
-// ClaimRecord is the plan and branch claims a run holds.
-type ClaimRecord struct {
-	Root   string
-	Scopes []planclaims.Scope
-	env    planclaims.Env
-}
-
-// Release drops every scope; releasing what is not held is a no-op.
-func (c *ClaimRecord) Release() {
-	if c == nil {
-		return
-	}
-	for _, s := range c.Scopes {
-		_ = planclaims.Release(c.Root, s.Scope, s.ID)
-	}
-}
-
-func (c *ClaimRecord) renew() {
-	for _, s := range c.Scopes {
-		_, _ = c.env.Renew(c.Root, s.Scope, s.ID)
-	}
 }
 
 func (r Runner) log(format string, a ...any) {
@@ -376,7 +349,6 @@ type step struct {
 	problem  Problem
 	tree     string
 	planFull string
-	claim    *ClaimRecord
 	parent   string // assess-parent target (agent_docs-relative)
 }
 
@@ -497,7 +469,6 @@ func (r Runner) runStep(ctx context.Context, prompt string, meta StepMeta, s ste
 		Dir: s.tree, Timeout: r.timeout(), Heartbeat: r.heartbeat(),
 		OnHeartbeat: func(elapsed time.Duration) {
 			r.log("still waiting on %s for %s (%dm elapsed, no result yet)", label, s.entry.Path, int(elapsed.Round(time.Minute)/time.Minute))
-			s.claim.renew()
 		},
 	})
 	if errors.Is(err, proc.ErrTimedOut) {
@@ -549,36 +520,10 @@ func problemSummary(p Problem) string {
 	return "Attempts exhausted"
 }
 
-// RunPlan works one plan: claim it, ensure its worktree, then loop agent → outcome → tests →
-// diff check → /assess-done, retrying with a follow-up prompt up to MaxAttempts. The claim is
-// released on every exit.
+// RunPlan works one plan: ensure its worktree, then loop agent → outcome → tests →
+// diff check → /assess-done, retrying with a follow-up prompt up to MaxAttempts.
 func (r Runner) RunPlan(ctx context.Context, entry Plan, plans []Plan) PlanResult {
 	branch := DaemonBranchFor(entry.Path, plans)
-	host, _ := os.Hostname()
-	owner := planclaims.Owner{Kind: "daemon", Label: r.Agent, PID: os.Getpid(), Host: host}
-	scopes := []planclaims.Scope{
-		{Scope: "plan", ID: entry.Path, Branch: branch},
-		{Scope: "branch", ID: branch, Branch: branch},
-	}
-	acq, err := r.ClaimEnv.Acquire(r.Root, scopes, owner, planclaims.DaemonTTL, false)
-	if err != nil || !acq.OK {
-		why := acq.BlockedScope
-		if acq.Decision.Reason != "" {
-			why = acq.Decision.Reason
-		}
-		if err != nil {
-			why = err.Error()
-		}
-		r.log("Skipping %s: claim held (%s)", entry.Path, why)
-		return PlanResult{Status: "skipped", Reason: "claim held"}
-	}
-	claim := &ClaimRecord{Root: r.Root, Scopes: scopes, env: r.ClaimEnv}
-	if r.OnActiveClaim != nil {
-		r.OnActiveClaim(claim)
-		defer r.OnActiveClaim(nil)
-	}
-	defer claim.Release()
-
 	ensure := r.EnsureWorktree
 	if ensure == nil {
 		ensure = func(b string) (worktree.EnsureResult, error) {
@@ -613,7 +558,7 @@ func (r Runner) RunPlan(ctx context.Context, entry Plan, plans []Plan) PlanResul
 
 	for attempt := 1; attempt <= max; attempt++ {
 		r.log("\n--- Plan: %s | Branch: %s | Worktree: %s | Attempt %d/%d ---", entry.Path, branch, wt.Path, attempt, max)
-		res, err := r.execStep(ctx, step{entry: entry, phase: "work", attempt: attempt, problem: problem, tree: wt.Path, planFull: planFull, claim: claim})
+		res, err := r.execStep(ctx, step{entry: entry, phase: "work", attempt: attempt, problem: problem, tree: wt.Path, planFull: planFull})
 		if err != nil {
 			return PlanResult{Status: "cancelled", Reason: err.Error()}
 		}
@@ -671,7 +616,7 @@ func (r Runner) RunPlan(ctx context.Context, entry Plan, plans []Plan) PlanResul
 			}
 			r.log("Diff: ✅")
 
-			ares, err := r.execStep(ctx, step{entry: entry, phase: "assess", attempt: attempt, tree: wt.Path, planFull: planFull, claim: claim})
+			ares, err := r.execStep(ctx, step{entry: entry, phase: "assess", attempt: attempt, tree: wt.Path, planFull: planFull})
 			if err != nil {
 				return PlanResult{Status: "cancelled", Reason: err.Error()}
 			}
@@ -704,7 +649,7 @@ func (r Runner) RunPlan(ctx context.Context, entry Plan, plans []Plan) PlanResul
 				return PlanResult{Status: "blocked", Reason: reason}
 			}
 			r.log("Commit: ✅ (auto: %s)", entry.Path)
-			r.closeOutParents(ctx, entry, wt.Path, claim)
+			r.closeOutParents(ctx, entry, wt.Path)
 			return PlanResult{Status: "ready-for-review", Attempts: attempt}
 		}
 	}
@@ -716,7 +661,7 @@ func (r Runner) RunPlan(ctx context.Context, entry Plan, plans []Plan) PlanResul
 
 // closeOutParents walks up the subtask chain: once every subtask of a parent is resolved, run
 // /assess-done on the parent and mark it Done, or Blocked with the gaps.
-func (r Runner) closeOutParents(ctx context.Context, entry Plan, tree string, claim *ClaimRecord) {
+func (r Runner) closeOutParents(ctx context.Context, entry Plan, tree string) {
 	cur := entry
 	for cur.SubtaskOf != "" {
 		parentPath := norm(cur.SubtaskOf)
@@ -742,7 +687,7 @@ func (r Runner) closeOutParents(ctx context.Context, entry Plan, tree string, cl
 		}
 		r.log("All subtasks resolved for parent %s. Running /assess-done on parent...", parent.Path)
 		res, err := r.execStep(ctx, step{entry: *parent, phase: "assess-parent", attempt: 1, tree: tree,
-			planFull: "agent_docs/" + parent.Path, parent: parent.Path, claim: claim})
+			planFull: "agent_docs/" + parent.Path, parent: parent.Path})
 		if err != nil || res.timedOut {
 			break
 		}

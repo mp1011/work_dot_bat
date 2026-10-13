@@ -107,7 +107,7 @@ func TestEmbeddedVendorMatchesItsManifest(t *testing.T) {
 			t.Errorf("%s must use LF line endings", file)
 		}
 	}
-	for _, name := range []string{"plan-status", "plan-claim", "list-tasks", "worktree-info", "run-checks"} {
+	for _, name := range []string{"plan-status", "list-tasks", "worktree-info", "run-checks"} {
 		if _, ok := m.Files["scripts/work_dot_bat/"+name+".sh"]; !ok {
 			t.Errorf("missing wrapper for %s", name)
 		}
@@ -310,7 +310,7 @@ func TestBootstrapNeverOverwritesAndMergesSettings(t *testing.T) {
 	if s["model"] != "opus" || deny[0] != "Bash(rm*)" || len(deny) != 1+len(safetyhook.DenyRules) {
 		t.Errorf("settings %v", s)
 	}
-	if got := r.read(".gitignore"); got != "node_modules/\n\n# work_dot_bat runtime state (claims, session ledger, logs)\n.work_dot_bat/\n" {
+	if got := r.read(".gitignore"); got != "node_modules/\n\n# work_dot_bat runtime state (session ledger, logs)\n.work_dot_bat/\n" {
 		t.Errorf("%q", got)
 	}
 	if strings.Contains(r.read("work_dot_bat.config.json"), "npm") {
@@ -372,13 +372,13 @@ func TestBootstrapEdgeCases(t *testing.T) {
 
 func TestMigrateStateAndRewritePathsCommands(t *testing.T) {
 	r := newRig(t)
-	r.write(".claims/x.json", "{}")
-	if code := maintcli.MigrateState(r.cfg, nil); code != 0 || !strings.Contains(r.out.String(), "Would move: .claims -> .work_dot_bat/claims") || !r.has(".claims/x.json") {
+	r.write(".tools/logs/x.log", "x")
+	if code := maintcli.MigrateState(r.cfg, nil); code != 0 || !strings.Contains(r.out.String(), "Would move: .tools/logs -> .work_dot_bat/logs") || !r.has(".tools/logs/x.log") {
 		t.Errorf("%d %s", code, r.out.String())
 	}
 	r.reset()
 	maintcli.MigrateState(r.cfg, []string{"--apply"})
-	if !r.has(".work_dot_bat/claims/x.json") || r.has(".claims") || !strings.Contains(r.out.String(), "Moved: .claims -> .work_dot_bat/claims") {
+	if !r.has(".work_dot_bat/logs/x.log") || r.has(".tools/logs") || !strings.Contains(r.out.String(), "Moved: .tools/logs -> .work_dot_bat/logs") {
 		t.Errorf("%s", r.out.String())
 	}
 

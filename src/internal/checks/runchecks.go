@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"work_dot_bat/src/internal/immediate"
-	"work_dot_bat/src/internal/planclaims"
 	"work_dot_bat/src/internal/planstatus"
 	"work_dot_bat/src/internal/proc"
 	"work_dot_bat/src/internal/projectconfig"
@@ -162,8 +161,7 @@ func (e Env) native(id string, noTighten bool) func(context.Context, string) int
 	switch id {
 	case "plan-drift":
 		return func(_ context.Context, cwd string) int {
-			return planstatus.CLI{Root: cwd, Stdout: e.Out, Stderr: e.Err, Collect: planstatus.GitCollectWorktreeStatuses,
-				Claims: planclaims.DefaultEnv().ListTaskClaims}.Run([]string{"check"})
+			return planstatus.CLI{Root: cwd, Stdout: e.Out, Stderr: e.Err, Collect: planstatus.GitCollectWorktreeStatuses}.Run([]string{"check"})
 		}
 	case "monolith":
 		return func(_ context.Context, cwd string) int {

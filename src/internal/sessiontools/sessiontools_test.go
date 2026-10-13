@@ -191,32 +191,24 @@ func TestReclassifyDryRunThenWriteChangesOnlyBounces(t *testing.T) {
 func TestReclassifyOrphans(t *testing.T) {
 	ledger := `[
   {"sessionName":"old","plan":"plans/a.md","status":"in-progress","startedAt":"2026-10-01T10:00:00.000Z"},
-  {"sessionName":"old-claimed","plan":"plans/live.md","status":"in-progress","startedAt":"2026-10-01T10:00:00.000Z"},
   {"sessionName":"recent","plan":"plans/b.md","status":"in-progress","startedAt":"2026-10-03T11:00:00.000Z"},
   {"sessionName":"done","status":"completed"},
   {"sessionName":"nodate","plan":"plans/c.md","status":"in-progress"}
 ]`
 	r := newRig(t, ledger)
-	// A live claim on plans/live.md keeps its row.
-	os.MkdirAll(filepath.Join(r.root, ".work_dot_bat", "claims"), 0o755)
-	host, _ := os.Hostname()
-	claim := `{"scope":"plan","id":"plans/live.md","owner":{"kind":"launcher","label":"w","pid":` + itoa(os.Getpid()) + `,"host":"` + host + `"},"branch":"live","worktree":null,"acquiredAt":"` +
-		time.Now().UTC().Format("2006-01-02T15:04:05.000Z") + `","ttlMs":14400000}`
-	os.WriteFile(filepath.Join(r.root, ".work_dot_bat", "claims", "plan--plans-live.md.json"), []byte(claim), 0o644)
-
 	Reclassify(r.cfg(), []string{"--orphans", "--write"})
 	rows := agentsession.ReadLedger(filepath.Join(r.root, ".work_dot_bat", "session_ledger.json"))
 	status := map[string]any{}
 	for _, e := range rows {
 		status[e["sessionName"].(string)] = e["status"]
 	}
-	want := map[string]any{"old": "abandoned", "old-claimed": "in-progress", "recent": "in-progress", "done": "completed", "nodate": "abandoned"}
+	want := map[string]any{"old": "abandoned", "recent": "in-progress", "done": "completed", "nodate": "abandoned"}
 	for k, v := range want {
 		if status[k] != v {
 			t.Errorf("%s: %v want %v (%s)", k, status[k], v, r.out.String())
 		}
 	}
-	if !strings.Contains(r.out.String(), "5 session(s) in") || !strings.Contains(r.out.String(), "2 orphaned in-progress session(s):") {
+	if !strings.Contains(r.out.String(), "4 session(s) in") || !strings.Contains(r.out.String(), "2 orphaned in-progress session(s):") {
 		t.Errorf("%s", r.out.String())
 	}
 	for _, e := range rows {

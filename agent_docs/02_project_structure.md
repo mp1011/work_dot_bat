@@ -20,7 +20,6 @@ This is a practical map of the repository. Summaries are intentionally brief.
   - `create_worktree` - <!-- TODO: summarize -->
   - `create_worktree.bat` - <!-- TODO: summarize -->
   - `list-tasks.sh` - <!-- TODO: summarize -->
-  - `plan-claim.sh` - <!-- TODO: summarize -->
   - `plan-status.sh` - <!-- TODO: summarize -->
   - `prepare_for_push` - <!-- TODO: summarize -->
   - `prepare_for_push.bat` - <!-- TODO: summarize -->
@@ -38,6 +37,7 @@ This is a practical map of the repository. Summaries are intentionally brief.
   - `add-to-path.bat` - <!-- TODO: summarize -->
   - `add-to-path.ps1` - <!-- TODO: summarize -->
   - `add-to-path.sh` - <!-- TODO: summarize -->
+  - `build-local.bat` - <!-- TODO: summarize -->
 - `src\`
   - `cmd\`
     - `work_dot_bat\`
@@ -77,6 +77,7 @@ This is a practical map of the repository. Summaries are intentionally brief.
       - `skills.go` - <!-- TODO: summarize -->
       - `structure.go` - <!-- TODO: summarize -->
       - `structure_test.go` - <!-- TODO: summarize -->
+      - `immediate_test.go` - <!-- TODO: summarize -->
     - `daemon\`
       - `agent.go` - <!-- TODO: summarize -->
       - `cli.go` - <!-- TODO: summarize -->
@@ -99,13 +100,6 @@ This is a practical map of the repository. Summaries are intentionally brief.
     - `pathrewrite\`
       - `pathrewrite.go` - <!-- TODO: summarize -->
       - `pathrewrite_test.go` - <!-- TODO: summarize -->
-    - `planclaims\`
-      - `claims.go` - <!-- TODO: summarize -->
-      - `cli.go` - <!-- TODO: summarize -->
-      - `planclaims_test.go` - <!-- TODO: summarize -->
-      - `process_unix.go` - <!-- TODO: summarize -->
-      - `process_windows.go` - <!-- TODO: summarize -->
-      - `prune.go` - <!-- TODO: summarize -->
     - `planstatus\`
       - `check.go` - <!-- TODO: summarize -->
       - `cli.go` - <!-- TODO: summarize -->
@@ -165,6 +159,7 @@ This is a practical map of the repository. Summaries are intentionally brief.
       - `pure_test.go` - <!-- TODO: summarize -->
       - `push.go` - <!-- TODO: summarize -->
       - `push_test.go` - <!-- TODO: summarize -->
+      - `immediate_test.go` - <!-- TODO: summarize -->
     - `worktree\`
       - `cli.go` - <!-- TODO: summarize -->
       - `detach_unix.go` - <!-- TODO: summarize -->
@@ -178,6 +173,9 @@ This is a practical map of the repository. Summaries are intentionally brief.
     - `wrappers\`
       - `wrappers.go` - <!-- TODO: summarize -->
       - `wrappers_test.go` - <!-- TODO: summarize -->
+    - `immediate\`
+      - `immediate.go` - <!-- TODO: summarize -->
+      - `immediate_test.go` - <!-- TODO: summarize -->
   - `vendor\`
     - `manifest.json` - <!-- TODO: summarize -->
     - `scripts\`
@@ -189,7 +187,6 @@ This is a practical map of the repository. Summaries are intentionally brief.
         - `check-source-assertions.sh` - <!-- TODO: summarize -->
         - `check-structural-duplication.sh` - <!-- TODO: summarize -->
         - `list-tasks.sh` - <!-- TODO: summarize -->
-        - `plan-claim.sh` - <!-- TODO: summarize -->
         - `plan-status.sh` - <!-- TODO: summarize -->
         - `run-checks.sh` - <!-- TODO: summarize -->
         - `typescript\`

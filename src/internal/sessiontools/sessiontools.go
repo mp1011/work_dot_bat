@@ -12,7 +12,6 @@ import (
 
 	"work_dot_bat/src/internal/agentcmd"
 	"work_dot_bat/src/internal/agentsession"
-	"work_dot_bat/src/internal/planclaims"
 	"work_dot_bat/src/internal/repo"
 )
 
@@ -157,36 +156,6 @@ func (c Config) resolveLedger(args []string) string {
 
 func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
 
-// liveClaimChecker says whether a row's plan has a held claim in this or the main checkout.
-func (c Config) liveClaimChecker() func(*agentsession.Row) bool {
-	roots := []string{c.Root}
-	if main := repo.FindMainRepoRoot(c.Root); main != "" && main != c.Root {
-		roots = append(roots, main)
-	}
-	env := planclaims.DefaultEnv()
-	var held []string
-	for _, r := range roots {
-		for _, cl := range env.ListClaims(r) {
-			if cl.Decision.State == planclaims.Held {
-				held = append(held, agentsession.CleanPlanSlug(cl.ID))
-			}
-		}
-	}
-	return func(r *agentsession.Row) bool {
-		plan := r.Str("plan")
-		if plan == "" {
-			return false
-		}
-		slug := agentsession.CleanPlanSlug(plan)
-		for _, h := range held {
-			if h == slug {
-				return true
-			}
-		}
-		return false
-	}
-}
-
 // Reclassify relabels ledger rows: completed-but-really-rate-limited ones, or (--orphans) stale
 // in-progress ones. Dry run unless --write.
 func Reclassify(c Config, args []string) int {
@@ -206,7 +175,7 @@ func Reclassify(c Config, args []string) int {
 	var changed []string
 	var what, relabel string
 	if orphans {
-		changed = agentsession.ReclassifyOrphans(rows, c.liveClaimChecker(), c.now(), 24*time.Hour)
+		changed = agentsession.ReclassifyOrphans(rows, c.now(), 24*time.Hour)
 		what, relabel = "orphaned in-progress session(s)", "abandoned"
 	} else {
 		dirs := agentsession.Dirs{Projects: argValue(args, "--projects-dir")}

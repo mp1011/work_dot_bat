@@ -37,23 +37,21 @@ func TestNothingToMigrate(t *testing.T) {
 	}
 }
 
-func TestApplyMovesLedgerLogsAndClaims(t *testing.T) {
+func TestApplyMovesLedgerAndLogs(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, ".tools/session_ledger.json", `[{"sessionName":"s"}]`)
 	write(t, root, ".tools/logs/a.log", "log a")
-	write(t, root, ".claims/plan--x.json", `{"scope":"plan"}`)
 	write(t, root, ".tools/other.txt", "unrelated")
 	write(t, root, ".tools/auto_daemon_state.json", "{}")
 
 	plan := PlanMigration(root)
-	if len(plan.Moves) != 3 || len(plan.Dead) != 1 {
+	if len(plan.Moves) != 2 || len(plan.Dead) != 1 {
 		t.Fatalf("%+v", plan)
 	}
 	dry := FormatReport(plan, false, root, false)
 	for _, want := range []string{
 		"Would move: .tools/session_ledger.json -> .work_dot_bat/session_ledger.json",
 		"Would move: .tools/logs -> .work_dot_bat/logs",
-		"Would move: .claims -> .work_dot_bat/claims",
 		"Not migrated (obsolete, safe to delete): .tools/auto_daemon_state.json",
 		"Dry run. Re-run with --apply to move the state. Stop any running daemon first.",
 		`Note: add ".work_dot_bat/" to this repo's .gitignore.`,
@@ -67,21 +65,20 @@ func TestApplyMovesLedgerLogsAndClaims(t *testing.T) {
 	}
 
 	done, err := Apply(plan, root)
-	if err != nil || len(done) != 3 {
+	if err != nil || len(done) != 2 {
 		t.Fatalf("%v %v", done, err)
 	}
-	if read(root, ".work_dot_bat/session_ledger.json") != `[{"sessionName":"s"}]` || read(root, ".work_dot_bat/logs/a.log") != "log a" ||
-		read(root, ".work_dot_bat/claims/plan--x.json") != `{"scope":"plan"}` {
+	if read(root, ".work_dot_bat/session_ledger.json") != `[{"sessionName":"s"}]` || read(root, ".work_dot_bat/logs/a.log") != "log a" {
 		t.Error("content not preserved")
 	}
-	if hasFile(root, ".claims") || hasFile(root, ".tools/logs") || hasFile(root, ".tools/session_ledger.json") {
+	if hasFile(root, ".tools/logs") || hasFile(root, ".tools/session_ledger.json") {
 		t.Error("old locations should be gone")
 	}
 	if read(root, ".tools/other.txt") != "unrelated" || !hasFile(root, ".tools/auto_daemon_state.json") {
 		t.Error("unrelated and obsolete files stay put")
 	}
 	applied := FormatReport(plan, true, root, true)
-	if !strings.Contains(applied, "Moved: .claims -> .work_dot_bat/claims") || strings.Contains(applied, "Dry run") || strings.Contains(applied, "gitignore") {
+	if !strings.Contains(applied, "Moved: .tools/logs -> .work_dot_bat/logs") || strings.Contains(applied, "Dry run") || strings.Contains(applied, "gitignore") {
 		t.Errorf("%s", applied)
 	}
 }

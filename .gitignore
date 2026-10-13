@@ -3,5 +3,4 @@ node_modules/
 projects.json
 .work_dot_bat/
 logs/
-.claims/
 dist/

@@ -14,7 +14,6 @@ import (
 	"work_dot_bat/src/internal/batch"
 	"work_dot_bat/src/internal/immediate"
 	"work_dot_bat/src/internal/menu"
-	"work_dot_bat/src/internal/planclaims"
 	"work_dot_bat/src/internal/planstatus"
 	"work_dot_bat/src/internal/taskmenu"
 	"work_dot_bat/src/internal/worktree"
@@ -31,8 +30,7 @@ type App struct {
 	Ask   func(prompt string) (string, bool)
 	IsTTY bool
 
-	ClaimEnv planclaims.Env
-	Dirs     agentsession.Dirs
+	Dirs agentsession.Dirs
 
 	Now       func() time.Time                           // seam
 	Settings  func() agentcmd.Settings                   // seam
@@ -67,10 +65,6 @@ func (a App) confirm(prompt string) bool {
 	ans, _ := a.ask(prompt)
 	ans = strings.ToLower(ans)
 	return ans == "y" || ans == "yes"
-}
-
-func (a App) claims() planclaims.CLI {
-	return planclaims.CLI{Root: a.Root, Stdout: a.Out, Stderr: a.Out, Env: a.ClaimEnv}
 }
 
 func (a App) guard() func() {
@@ -138,10 +132,7 @@ func (a App) setStatus(path, status string, human bool) bool {
 // none (or another session holds it). The launcher offers it once per run, so backing out of the
 // plan returns to the menu instead of looping.
 func (a App) pickImmediate() (res taskmenu.Result, ok bool) {
-	entry, due, note := immediate.Due(a.Root, a.ClaimEnv.ListTaskClaims(a.Root))
-	if note != "" {
-		a.log(note)
-	}
+	entry, due := immediate.Due(a.Root)
 	if !due {
 		return taskmenu.Result{}, false
 	}
@@ -200,7 +191,6 @@ const (
 
 // Run is the launcher's main loop; it returns the process exit code.
 func (a App) Run(ctx context.Context) int {
-	a.ClaimEnv.PruneStaleClaims(a.Root, a.log)
 	offeredImmediate := false
 	for {
 		a.log("\n===================================================")
@@ -334,7 +324,7 @@ func (a App) runTests(layers ...string) []string {
 }
 
 // loopUntilDone is loop mode: every eligible subtask of the parent, then the parent, run
-// non-interactively under the launcher's claim. It needs the automated test runner; without
+// non-interactively. It needs the automated test runner; without
 // one it refuses rather than call unverified work done.
 func (a App) loopUntilDone(ctx context.Context, parent *taskmenu.Item, agent string) bool {
 	if a.RunTests == nil {
@@ -349,9 +339,7 @@ func (a App) loopUntilDone(ctx context.Context, parent *taskmenu.Item, agent str
 		RunAgent: func(prompt, planPath string, attempt int) batch.AgentResult {
 			return a.RunAgentNonInteractive(ctx, agent, prompt, planPath, attempt)
 		},
-		RunTests:     a.RunTests,
-		AcquireClaim: a.AcquireLeafClaim,
-		ReleaseClaim: a.ReleaseLeafClaim,
+		RunTests: a.RunTests,
 		ReadPlan: func(planPath string) string {
 			full := planPath
 			if !filepath.IsAbs(full) {
@@ -504,10 +492,8 @@ func (a App) taskStep(ctx context.Context, task *taskmenu.Item, agent *string) f
 	return stay
 }
 
-// workOnTask launches the work skill on the task. A leaf plan holds the plan/branch claim for the
-// whole run (acquired here, released by defer) instead of leaving the spawned agent to acquire
-// and maybe not release it; a parent plan spawns next-subtask-yolo, which acquires the
-// *subtask's* claim itself, so this launcher must not take the shared branch scope from under it.
+// workOnTask launches the work skill on the task: do-work-yolo for a leaf plan,
+// next-subtask-yolo for a parent.
 func (a App) workOnTask(ctx context.Context, task *taskmenu.Item, agent *string, isParent bool) flow {
 	a.markInProgress(task)
 	special, ok := a.ask("\nEnter any special instructions for this task (or press Enter to skip): ")

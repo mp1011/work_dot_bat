@@ -8,7 +8,7 @@ Go port of the Node launcher's "Step 1" menu (`selectTask` in `src/lib/work-comm
 
 ## Quirks kept on purpose
 - Only one level of nesting is listed: a grandchild (e.g. `02a` under `02`, itself a subtask) never appears, as in Node.
-- The menu line shows the worktree branch but not claim state (Node doesn't either).
+- The menu line shows the worktree branch (Node does the same).
 
 ## Deliberate differences from Node
 - Write-in refuses to overwrite an existing plan file (Node silently clobbered it).
@@ -23,7 +23,7 @@ Go port of the Node launcher's "Step 1" menu (`selectTask` in `src/lib/work-comm
 
 - **Recording** — `checks.Env.RunAutomatedTests` (the one entry the push gate, loop mode, the daemon and the launcher's test options share) captures each failing check's output and calls `immediate.Record`; a pass calls `immediate.Clear`. Each failure is a `## AUTOMATION: <check name>` section (command + output tail, capped at `MaxOutput`); a repeat failure replaces its own section, others are appended. The file is created via `planstatus.Add`; a failure after `Done` starts a fresh body and sets `Not Started` (`In Progress` is kept).
 - **Clearing** — a passing check removes its section; when none remain the Work script sets `Done` through `planstatus.Set` and erases the body (frontmatter kept). A pass of an unrecorded check changes nothing. A recorded non-test check that is no longer in the run's check list (e.g. disabled in the project config) counts as passed, since it can no longer fail; recorded `[tier] ...` test entries are cleared only by their own pass. The agent never sets `Done` (`agentcmd.ImmediatePlanNote` tells it so).
-- **Picking** — `work.App.Run` offers a pending (not `Done`) immediate plan once per run, before the menu, with the notice `Immediate plan pending: picking agent_docs/plans/immediate.md`; backing out returns to the menu. A live claim by another session skips it with a note.
+- **Picking** — `work.App.Run` offers a pending (not `Done`) immediate plan once per run, before the menu, with the notice `Immediate plan pending: picking agent_docs/plans/immediate.md`; backing out returns to the menu.
 - **Only the main checkout** — runs in a worktree (the daemon's) never record or clear: that file would pollute the branch's diff, and the daemon retries its own failures. A write failure prints a warning and never changes the gate's result.
 - Loop mode runs after the launcher's pick, so it inherits the choice; the daemon does not pick the immediate plan.
 
@@ -35,8 +35,7 @@ Pure port of `agent-settings.mjs` plus the prompt builders from `batch-common.mj
 
 `work_dot_bat work project=<name>` runs `work.Main`: Step 1 menu (`taskmenu`), then the Step 2 action menu (`TaskMenuOptions`), mirroring the Node launcher's `main()`.
 
-- **Claim lifetime** — `App.WithClaim` acquires the leaf plan's claim as `launcher` with the launcher's own pid (via the `planclaims` CLI, so output matches), runs the launch, and releases in a `defer` (panic-safe). A parent plan takes no claim: `next-subtask-yolo` acquires the subtask's claim itself.
-- **Ctrl-C** — `ExecAgent` hands the child the real stdin/stdout/stderr handles and ignores SIGINT in the launcher while it runs, so the agent (which owns the terminal) decides what Ctrl-C means and the deferred release still runs. SIGTERM (and tests) cancel the context, which kills the agent.
+- **Ctrl-C** — `ExecAgent` hands the child the real stdin/stdout/stderr handles and ignores SIGINT in the launcher while it runs, so the agent (which owns the terminal) decides what Ctrl-C means . SIGTERM (and tests) cancel the context, which kills the agent.
 - **Session ledger** — `agentsession` names sessions, derives the UUIDv5 session id, records start/end in `.work_dot_bat/session_ledger.json` (unknown row fields survive), and classifies the end of a run from the Claude/agy transcript (usage-limit bounces exit 0). Rate-limit parsing uses the embedded tz database (`time/tzdata`) because Windows has none.
 - **Breakdown detection** (`breakdown.go`) is ported for the loop/batch/daemon flows (04e, 05); the interactive launcher itself does not call it.
 - **Hooks still to port** — `App.MergeBack` (04d), `Loop` (04e), `Push` and `RunTests` (08) print a "not yet ported" notice until wired.
@@ -51,17 +50,17 @@ Differences from Node: the final "Open …plan_index.html" line is printed only 
 
 # Loop and batch logic (`internal/batch`)
 
-Pure, injected-side-effect port of `loop-work.mjs` and the shared parts of `batch-common.mjs`: `RunPlanWithRetries` (also for the daemon, 05), `RunLoopUntilDone`, `NextLoopDecision`, `WithClaimRelease` (deferred, panic-safe), `FormatSummary`, `RateLimitStopMessage`, `PauseForRateLimit` (injected clock and sleeper). Rate-limit text parsing and exit classification live in `agentsession`. `work.App.loopUntilDone` wires it to real claims and non-interactive agent runs (`RunAgentNonInteractive`, `--print`, one ledger row per attempt).
+Pure, injected-side-effect port of `loop-work.mjs` and the shared parts of `batch-common.mjs`: `RunPlanWithRetries` (also for the daemon, 05), `RunLoopUntilDone`, `NextLoopDecision`, `FormatSummary`, `RateLimitStopMessage`, `PauseForRateLimit` (injected clock and sleeper). Rate-limit text parsing and exit classification live in `agentsession`. `work.App.loopUntilDone` wires it to non-interactive agent runs (`RunAgentNonInteractive`, `--print`, one ledger row per attempt).
 
 Loop mode refuses to start while `App.RunTests` is nil (the check runner is subtask 08): calling work "done" without running the tests would be worse than not running. Pause-and-resume after a bounce is the daemon's job (05); loop mode stops, as in Node.
 Path ordering uses byte comparison where Node used `localeCompare`; it only differs for exotic filenames.
 
 # Auto daemon and status (`internal/daemon`)
 
-- `plans.go` — the pure planner: `Eligibility` (auto or auto-ancestor; no own subtasks; Not Started/In Progress; committed; earlier siblings resolved; `depends_on` resolved; no live claim), `DaemonBranchFor`, `ReadPlanStates` (worktree copy wins when the plan's daemon branch has a live worktree), `FormatAutoStatusReport`.
+- `plans.go` — the pure planner: `Eligibility` (auto or auto-ancestor; no own subtasks; Not Started/In Progress; committed; earlier siblings resolved; `depends_on` resolved), `DaemonBranchFor`, `ReadPlanStates` (worktree copy wins when the plan's daemon branch has a live worktree), `FormatAutoStatusReport`.
 - `agent.go` — the `AUTO_OUTCOME:` / `ASSESSMENT:` parsing contract (last marker wins) and the daemon prompts, byte-compatible with Node.
-- `run.go` — `Runner.RunPlan`: claim (plan + branch scopes, daemon TTL), ensure/bootstrap worktree, agent → outcome → tests → non-plan-diff check → `/assess-done`, up to 3 attempts, usage-limit waits (a bounce is not an attempt), parent close-out. Every external effect is a field, so tests inject a fake agent against real git worktrees.
-- `proc*.go` — `RunProcess`: stdout/stderr pass-through, stdin closed, heartbeat, timeout, and **process-tree kill** (own process group + SIGTERM→SIGKILL on Unix, `taskkill /T /F` on Windows). Cancelling the context (SIGINT/SIGTERM) kills the agent and its children; `RunPlan`'s deferred release drops the claims. Tested by observing a grandchild's absence.
+- `run.go` — `Runner.RunPlan`: ensure/bootstrap worktree, agent → outcome → tests → non-plan-diff check → `/assess-done`, up to 3 attempts, usage-limit waits (a bounce is not an attempt), parent close-out. Every external effect is a field, so tests inject a fake agent against real git worktrees.
+- `proc*.go` — `RunProcess`: stdout/stderr pass-through, stdin closed, heartbeat, timeout, and **process-tree kill** (own process group + SIGTERM→SIGKILL on Unix, `taskkill /T /F` on Windows). Cancelling the context (SIGINT/SIGTERM) kills the agent and its children. Tested by observing a grandchild's absence.
 - A stuck agent (timeout) ends the daemon with exit 1, as in Node.
 - The daemon refuses to mark a plan done without a test runner (`Config.RunTests`); it is wired with the checks subtask (08).
 
@@ -75,7 +74,7 @@ The ledger is now read and written with key order preserved (`agentsession.Row`,
 
 # Sync, bootstrap, migrate_state, rewrite_paths, safety hook (`internal/{managed,syncer,bootstrap,statemigrate,pathrewrite,safetyhook,maintcli}`)
 
-- **Assets are embedded** (`assets.go` at the module root: `//go:embed all:vendor` and `all:templates/files`), so the binary carries what `sync` installs and `bootstrap` renders. The vendored *content* is deliberately left as it is (Node scripts); what target repos should receive instead (thin shims that exec this binary, per the open decision in `plans/initial_port/02_plan_status_and_claims.md`) is a data change under `vendor/` plus `work_dot_bat vendor-bump`, not a code change.
+- **Assets are embedded** (`assets.go` at the module root: `//go:embed all:vendor` and `all:templates/files`), so the binary carries what `sync` installs and `bootstrap` renders. The vendored *content* is deliberately left as it is (Node scripts); what target repos should receive instead (thin shims that exec this binary, per the open decision in the initial-port plans) is a data change under `vendor/` plus `work_dot_bat vendor-bump`, not a code change.
 - `managed` — header render/parse, SHA-256 of the EOL-normalised body, versions; and the manifest (drift, bump). `work_dot_bat vendor-check` / `vendor-bump [--minor|--major]` replace `npm run vendor:check|bump` (they read `./vendor` on disk, run from the tool checkout). `internal/maintcli` has a test that the *embedded* tree matches its manifest, replacing `test/vendor-contract.test.ts`.
 - `syncer` — classify (missing/current/outdated/modified/unmanaged/newer), apply, orphans; `--dry-run`, `--yes`, per-file prompts on a terminal; non-zero exit when something was skipped.
 - `bootstrap` — templated files (unknown `{{placeholder}}` is an error), baselines for enabled checks, merged settings, `.gitignore`, pre-push hook, then sync. Never overwrites, never commits.

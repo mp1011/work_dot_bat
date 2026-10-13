@@ -6,14 +6,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"work_dot_bat/src/internal/agentcmd"
 	"work_dot_bat/src/internal/agentsession"
-	"work_dot_bat/src/internal/planclaims"
 	"work_dot_bat/src/internal/planstatus"
 	"work_dot_bat/src/internal/repo"
 	"work_dot_bat/src/internal/taskmenu"
@@ -37,7 +35,7 @@ type fixture struct {
 	agent  []agentcmd.Command // commands the fake agent was given
 	gitRun [][]string
 	app    App
-	// onAgent runs inside the fake agent, while the claim should be held.
+	// onAgent runs inside the fake agent.
 	onAgent func(ctx context.Context) int
 }
 
@@ -56,7 +54,6 @@ func newFixture(t *testing.T, inputs ...string) *fixture {
 			f.inputs = f.inputs[1:]
 			return in, true
 		},
-		ClaimEnv:  planclaims.DefaultEnv(),
 		Dirs:      agentsession.Dirs{Projects: t.TempDir(), AgyBrain: t.TempDir()},
 		Settings:  agentcmd.DefaultSettings,
 		Worktrees: func() []planstatus.Worktree { return nil },
@@ -75,15 +72,6 @@ func newFixture(t *testing.T, inputs ...string) *fixture {
 		},
 	}
 	return f
-}
-
-func (f *fixture) claimFiles() []string {
-	entries, _ := os.ReadDir(repo.ClaimsDir(f.root))
-	var names []string
-	for _, e := range entries {
-		names = append(names, e.Name())
-	}
-	return names
 }
 
 func (f *fixture) selecting(path string) {
@@ -115,21 +103,13 @@ func planStatusOf(t *testing.T, root, rel string) string {
 	return *fm.Status
 }
 
-// Work on a leaf plan: claim held during the agent run, prompt carries the launcher note, and
-// the claim is gone afterwards even though the agent failed.
-func TestWorkOnLeafLaunchesAgentDirectlyWithoutClaims(t *testing.T) {
+// Work on a leaf plan launches the agent directly, even though the agent fails.
+func TestWorkOnLeafLaunchesAgentDirectly(t *testing.T) {
 	f := newFixture(t, "w", "be careful", "c", "n", "s")
 	f.selecting("plans/x.md")
-	var during []string
-	f.onAgent = func(context.Context) int { during = f.claimFiles(); return 1 }
+	f.onAgent = func(context.Context) int { return 1 }
 	if code := f.run(); code != 0 {
 		t.Fatalf("exit %d\n%s", code, f.out.String())
-	}
-	if len(during) != 0 {
-		t.Errorf("interactive launch should not acquire claims, got %v", during)
-	}
-	if left := f.claimFiles(); len(left) != 0 {
-		t.Errorf("claims left behind: %v", left)
 	}
 	if len(f.agent) != 1 {
 		t.Fatalf("agent runs: %d\n%s", len(f.agent), f.out.String())
@@ -162,79 +142,17 @@ func contains(list []string, s string) bool {
 	return false
 }
 
-// An interrupt (the context is cancelled while the agent runs) leaves no claims behind.
-func TestInterruptDoesNotLeaveClaims(t *testing.T) {
-	f := newFixture(t, "w", "", "c", "n", "s")
-	f.selecting("plans/x.md")
-	ctx, cancel := context.WithCancel(context.Background())
-	f.onAgent = func(ctx context.Context) int {
-		cancel()
-		<-ctx.Done()
-		return 1
-	}
-	picks := 0
-	f.app.Pick = func() taskmenu.Result {
-		picks++
-		if picks > 1 {
-			return taskmenu.Result{Quit: true}
-		}
-		return taskmenu.Result{Task: &taskmenu.Item{Entry: planstatus.Entry{Path: "plans/x.md", Status: "Not Started"}}}
-	}
-	f.app.Run(ctx)
-	if left := f.claimFiles(); len(left) != 0 {
-		t.Errorf("claims left behind: %v", left)
-	}
-}
-
-func TestClaimReleasedWhenLaunchPanics(t *testing.T) {
-	f := newFixture(t)
-	f.app.RunAgent = func(context.Context, agentcmd.Command, string) (int, error) { panic("boom") }
-	func() {
-		defer func() { recover() }()
-		f.app.WithClaim("agent_docs/plans/x.md", func() {
-			f.app.LaunchInteractiveAgent(context.Background(), "c", "agent_docs/plans/x.md", "p")
-		})
-	}()
-	if left := f.claimFiles(); len(left) != 0 {
-		t.Errorf("claims left behind: %v", left)
-	}
-}
-
-func TestClaimHeldBySomeoneElseDoesNotBlockInteractiveWork(t *testing.T) {
-	f := newFixture(t, "w", "", "c", "n", "s")
-	f.selecting("plans/x.md")
-	other := planclaims.CLI{Root: f.root, Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}, Env: planclaims.DefaultEnv()}
-	if code := other.Run([]string{"acquire", "plans/x.md", "--owner", "daemon", "--kind", "daemon", "--pid", strconv.Itoa(os.Getppid())}); code != 0 {
-		t.Fatal("could not set up the held claim")
-	}
-	f.run()
-	if len(f.agent) != 1 {
-		t.Error("agent should run despite the held claim")
-	}
-	if strings.Contains(f.out.String(), "[SKIP] The plan/branch claim is held by someone else. Not starting this task.") {
-		t.Errorf("output:\n%s", f.out.String())
-	}
-	if len(f.claimFiles()) != 2 {
-		t.Errorf("the other holder's claim must stay: %v", f.claimFiles())
-	}
-}
-
-func TestParentPlanRunsNextSubtaskWithoutTakingAClaim(t *testing.T) {
+func TestParentPlanRunsNextSubtask(t *testing.T) {
 	f := newFixture(t, "w", "", "c", "n", "s")
 	writePlan(t, f.root, "plans/p/plan.md", "---\nstatus: In Progress\n---\n\n# GOAL\nparent\n")
 	writePlan(t, f.root, "plans/p/01.md", "---\nstatus: Not Started\nsubtask_of: plans/p/plan.md\n---\n\n# GOAL\nchild\n")
 	f.selecting("plans/p/plan.md")
-	var during []string
-	f.onAgent = func(context.Context) int { during = f.claimFiles(); return 0 }
 	f.run()
 	if len(f.agent) != 1 {
 		t.Fatalf("agent runs: %d\n%s", len(f.agent), f.out.String())
 	}
 	if got := f.agent[0].Args[len(f.agent[0].Args)-1]; got != "/next-subtask-yolo agent_docs/plans/p/plan.md" {
 		t.Errorf("prompt %q", got)
-	}
-	if len(during) != 0 {
-		t.Errorf("the launcher must not hold a claim for a parent plan: %v", during)
 	}
 	if !strings.Contains(f.out.String(), "w) Work on Next Subtask") || !strings.Contains(f.out.String(), "l) Loop until done") {
 		t.Errorf("menu:\n%s", f.out.String())
@@ -269,9 +187,6 @@ func TestGeneralRequestUsesPlanContextPrompt(t *testing.T) {
 	if c.Cmd != "agy" || c.Args[len(c.Args)-2] != "-i" ||
 		c.Args[len(c.Args)-1] != "Read the plan file at agent_docs/plans/x.md for context.\n\nlook at the tests" {
 		t.Errorf("%+v", c)
-	}
-	if len(f.claimFiles()) != 0 {
-		t.Error("general requests take no claim")
 	}
 }
 
@@ -516,16 +431,14 @@ func TestExecAgentPassesStdinThrough(t *testing.T) {
 var _ = exec.Command
 
 // Loop mode through the launcher: subtasks then parent, non-interactive (--print) runs under the
-// launcher's claim, each claim gone afterwards, attempts recorded in the ledger.
-func TestLoopModeRunsNonInteractivelyAndReleasesClaims(t *testing.T) {
+// runs, attempts recorded in the ledger.
+func TestLoopModeRunsNonInteractively(t *testing.T) {
 	f := newFixture(t, "l", "c", "s")
 	writePlan(t, f.root, "plans/p/plan.md", "---\nstatus: In Progress\n---\n\n# GOAL\nparent\n")
 	writePlan(t, f.root, "plans/p/01.md", "---\nstatus: Not Started\nsubtask_of: plans/p/plan.md\n---\n\n# GOAL\nchild\n")
 	f.selecting("plans/p/plan.md")
 	f.app.RunTests = func(layers ...string) []string { return nil }
-	var held [][]string
 	f.onAgent = func(context.Context) int {
-		held = append(held, f.claimFiles())
 		// the "agent" finishes whichever plan was last asked about
 		last := f.agent[len(f.agent)-1].Args
 		prompt := last[len(last)-1]
@@ -544,12 +457,6 @@ func TestLoopModeRunsNonInteractivelyAndReleasesClaims(t *testing.T) {
 		if !contains(c.Args, "--print") {
 			t.Errorf("run %d should be one-shot: %v", i, c.Args)
 		}
-		if len(held[i]) != 2 {
-			t.Errorf("run %d: claims held during the run: %v", i, held[i])
-		}
-	}
-	if left := f.claimFiles(); len(left) != 0 {
-		t.Errorf("claims left behind: %v", left)
 	}
 	if got := len(agentsession.ReadLedger(repo.LedgerPath(f.root))); got != 2 {
 		t.Errorf("ledger rows %d", got)

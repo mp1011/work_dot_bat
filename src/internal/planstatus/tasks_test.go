@@ -9,7 +9,7 @@ import (
 func taskRoot(t *testing.T) string {
 	root := t.TempDir()
 	plan(t, root, "plans/a_done.md", "---\nstatus: Done\n---\n\nx\n")
-	plan(t, root, "plans/b_claimed.md", "---\nstatus: In Progress\n---\n\nx\n")
+	plan(t, root, "plans/b_active.md", "---\nstatus: In Progress\n---\n\nx\n")
 	plan(t, root, "plans/c_free.md", "---\nstatus: Not Started\n---\n\nx\n")
 	plan(t, root, "plans/d_cancelled.md", "---\nstatus: Cancelled\n---\n\nx\n")
 	return root
@@ -22,15 +22,10 @@ func listTasks(root string, cli CLI, args ...string) string {
 	return o.String()
 }
 
-func TestListTasksIndexedAndClaimAnnotated(t *testing.T) {
+func TestListTasksIndexed(t *testing.T) {
 	root := taskRoot(t)
-	cli := CLI{Claims: func(string) map[string]TaskClaim {
-		return map[string]TaskClaim{
-			"plans/b_claimed.md": {Held: true, Text: "CLAIMED by daemon (pid 21044) 14m ago"},
-			"plans/c_free.md":    {Held: false, Text: "CLAIMED by agent (pid 1) 9h ago"}, // stale: not shown
-		}
-	}}
-	want := "1. [In Progress] plans/b_claimed.md  — CLAIMED by daemon (pid 21044) 14m ago\n" +
+	cli := CLI{}
+	want := "1. [In Progress] plans/b_active.md\n" +
 		"2. [Not Started] plans/c_free.md\n"
 	if got := listTasks(root, cli); got != want {
 		t.Fatalf("got %q want %q", got, want)
@@ -59,10 +54,10 @@ func TestListTasksShowsWorktreeAdvancedPlans(t *testing.T) {
 	cli := CLI{Collect: func(string) (map[string]WorktreeStatus, error) {
 		return map[string]WorktreeStatus{
 			"plans/c_free.md":    {Status: "Done", Branch: "feat"}, // finished on a branch: drops out
-			"plans/b_claimed.md": {Status: "Ready for Review", Branch: "feat"},
+			"plans/b_active.md": {Status: "Ready for Review", Branch: "feat"},
 		}, nil
 	}}
-	if got := listTasks(root, cli); got != "1. [Ready for Review @ feat] plans/b_claimed.md\n" {
+	if got := listTasks(root, cli); got != "1. [Ready for Review @ feat] plans/b_active.md\n" {
 		t.Fatalf("got %q", got)
 	}
 }

@@ -63,7 +63,6 @@ func TestStatePaths(t *testing.T) {
 	root := filepath.Join("r", "p")
 	for got, want := range map[string]string{
 		StateDir(root):   filepath.Join(root, ".work_dot_bat"),
-		ClaimsDir(root):  filepath.Join(root, ".work_dot_bat", "claims"),
 		LedgerPath(root): filepath.Join(root, ".work_dot_bat", "session_ledger.json"),
 		LogsDir(root):    filepath.Join(root, ".work_dot_bat", "logs"),
 	} {

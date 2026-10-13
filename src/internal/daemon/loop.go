@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"work_dot_bat/src/internal/planclaims"
 	"work_dot_bat/src/internal/planstatus"
 )
 
@@ -29,7 +28,6 @@ type Loop struct {
 	// Seams: defaults read real state.
 	ReadPlans func() []Plan
 	Committed func(plans []Plan) func(Plan) bool
-	Claims    func() []planclaims.Listed
 }
 
 func (l Loop) stamp(msg string) {
@@ -52,13 +50,6 @@ func (l Loop) committed(plans []Plan) func(Plan) bool {
 	return func(p Plan) bool { return set[p.Path] }
 }
 
-func (l Loop) claims() []planclaims.Listed {
-	if l.Claims != nil {
-		return l.Claims()
-	}
-	return l.Runner.ClaimEnv.ListClaims(l.Runner.Root)
-}
-
 // Run loops until ctx is cancelled (exit 0) or an agent gets stuck past its timeout (exit 1: the
 // agent CLI itself is wedged, so carrying on would only wedge the next plan).
 func (l Loop) Run(ctx context.Context) int {
@@ -69,7 +60,7 @@ func (l Loop) Run(ctx context.Context) int {
 	opened := map[string]bool{}
 	for i := 0; ctx.Err() == nil && (l.MaxIterations == 0 || i < l.MaxIterations); i++ {
 		plans := l.plans()
-		res := Eligibility(plans, Inputs{Committed: l.committed(plans), Claims: l.claims()})
+		res := Eligibility(plans, Inputs{Committed: l.committed(plans)})
 
 		if len(res.Blocked) > 0 {
 			l.stamp("")

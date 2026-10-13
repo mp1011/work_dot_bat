@@ -12,7 +12,6 @@ import (
 	"work_dot_bat/src/internal/proc"
 
 	"work_dot_bat/src/internal/agentsession"
-	"work_dot_bat/src/internal/planclaims"
 	"work_dot_bat/src/internal/planstatus"
 	"work_dot_bat/src/internal/repo"
 )
@@ -35,7 +34,7 @@ type rig struct {
 	calls  []string // "<phase>:<attempt>"
 	prompt []string
 	// agent decides the reply: phase ("work"/"assess"/"assess-parent"), attempt, wt path.
-	agent func(phase string, attempt int, wt string) StepRun
+	agent      func(phase string, attempt int, wt string) StepRun
 	tests      [][]string
 	ntest      int
 	testLayers []string
@@ -63,11 +62,10 @@ func newRig(t *testing.T) *rig {
 	g.wt = filepath.ToSlash(filepath.Join(base, "proj-"+planstatus.SlugForPlan("plans/x.md")))
 	g.r = Runner{
 		Root: root, ProjectName: "proj", Agent: "c", DaemonDoc: "doc.md",
-		Log:      func(m string) { g.logs = append(g.logs, m) },
-		ClaimEnv: planclaims.DefaultEnv(),
-		Dirs:     agentsession.Dirs{Projects: t.TempDir(), AgyBrain: t.TempDir()},
-		Ledger:   repo.LedgerPath(root),
-		Sleep:    func(_ context.Context, d time.Duration) error { g.slept = append(g.slept, d); return nil },
+		Log:    func(m string) { g.logs = append(g.logs, m) },
+		Dirs:   agentsession.Dirs{Projects: t.TempDir(), AgyBrain: t.TempDir()},
+		Ledger: repo.LedgerPath(root),
+		Sleep:  func(_ context.Context, d time.Duration) error { g.slept = append(g.slept, d); return nil },
 		RunAgent: func(ctx context.Context, prompt string, m StepMeta) StepRun {
 			g.calls = append(g.calls, m.Phase+":"+itoa(m.Attempt))
 			g.prompt = append(g.prompt, prompt)
@@ -100,15 +98,6 @@ func (g *rig) plan() Plan {
 func (g *rig) run() PlanResult {
 	p := g.plan()
 	return g.r.RunPlan(context.Background(), p, []Plan{p})
-}
-
-func (g *rig) claims() []string {
-	entries, _ := os.ReadDir(repo.ClaimsDir(g.root))
-	var n []string
-	for _, e := range entries {
-		n = append(n, e.Name())
-	}
-	return n
 }
 
 func (g *rig) wtStatus(rel string) string {
@@ -155,31 +144,12 @@ func TestDoneOutcomeEndsReadyForReviewAndCommits(t *testing.T) {
 	if !strings.HasPrefix(g.prompt[0], "/do-work-yolo agent_docs/plans/x.md\n\nDAEMON MODE") || g.prompt[1] != "/assess-done agent_docs/plans/x.md" {
 		t.Errorf("prompts %q", g.prompt)
 	}
-	if left := g.claims(); len(left) != 0 {
-		t.Errorf("claims left behind: %v", left)
-	}
 	if ledger := agentsession.ReadLedger(repo.LedgerPath(g.root)); len(ledger) != 2 || ledger[0]["status"] != "completed" {
 		t.Errorf("ledger %v", ledger)
 	}
 	// main is untouched: the work happened on the branch.
 	if gitIn(t, g.root, "log", "-1", "--format=%s") != "init" {
 		t.Error("main moved")
-	}
-}
-
-func TestClaimIsHeldDuringTheRun(t *testing.T) {
-	g := newRig(t)
-	var during []string
-	g.agent = func(phase string, attempt int, wt string) StepRun {
-		during = g.claims()
-		return StepRun{Output: "AUTO_OUTCOME: blocked — stop"}
-	}
-	g.run()
-	if len(during) != 2 {
-		t.Errorf("plan and branch claims expected during the run, got %v", during)
-	}
-	if len(g.claims()) != 0 {
-		t.Error("claims must be released")
 	}
 }
 
@@ -362,24 +332,6 @@ func TestCancellationReleasesTheClaim(t *testing.T) {
 	if res.Status != "cancelled" {
 		t.Errorf("%+v", res)
 	}
-	if left := g.claims(); len(left) != 0 {
-		t.Errorf("claims left behind: %v", left)
-	}
-}
-
-func TestHeldClaimSkipsThePlan(t *testing.T) {
-	g := newRig(t)
-	g.agent = func(string, int, string) StepRun { t.Error("agent must not run"); return StepRun{} }
-	other := planclaims.CLI{Root: g.root, Stdout: &strings.Builder{}, Stderr: &strings.Builder{}, Env: planclaims.DefaultEnv()}
-	if other.Run([]string{"acquire", "plans/x.md", "--owner", "someone", "--kind", "daemon", "--pid", itoa(os.Getppid())}) != 0 {
-		t.Fatal("setup")
-	}
-	if res := g.run(); res.Status != "skipped" || res.Reason != "claim held" {
-		t.Errorf("%+v", res)
-	}
-	if len(g.claims()) != 2 {
-		t.Errorf("the other holder's claims must stay: %v", g.claims())
-	}
 }
 
 func TestStuckAgentStopsTheDaemonRun(t *testing.T) {
@@ -399,9 +351,6 @@ func TestStuckAgentStopsTheDaemonRun(t *testing.T) {
 	}
 	if ledger := agentsession.ReadLedger(repo.LedgerPath(g.root)); len(ledger) != 1 || ledger[0]["status"] != "timed-out" {
 		t.Errorf("ledger %v", ledger)
-	}
-	if len(g.claims()) != 0 {
-		t.Error("claims must be released")
 	}
 }
 
