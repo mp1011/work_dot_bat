@@ -57,6 +57,71 @@ func TestListMonolithFilesScopeAndExclusions(t *testing.T) {
 	}
 }
 
+func TestListMonolithFilesConfiguredScan(t *testing.T) {
+	root := t.TempDir()
+	put(t, root, "work_dot_bat.config.json", `{"scanDirs":["ExploringGame","ExploringGame.UnitTests"],"scanExtensions":["*.cs",".fx"],"excludeDirs":["bin","obj"]}`)
+	for _, f := range []string{
+		"ExploringGame/Shape.cs",
+		"ExploringGame/bin/Debug/Generated.cs",
+		"ExploringGame/obj/Temp.cs",
+		"ExploringGame/Shaders/Effect.fx",
+		"ExploringGame/README.md",
+		"ExploringGame.UnitTests/TestMaps.cs",
+		"src/other.ts",
+	} {
+		put(t, root, f, "x")
+	}
+	got := ListMonolithFiles(root)
+	want := []string{
+		"ExploringGame.UnitTests/TestMaps.cs",
+		"ExploringGame/Shaders/Effect.fx",
+		"ExploringGame/Shape.cs",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func TestListTrackedSourceFilesConfiguredScan(t *testing.T) {
+	root := gitRepo(t)
+	put(t, root, "work_dot_bat.config.json", `{"scanDirs":["ExploringGame","ExploringGame.UnitTests"],"scanExtensions":[".cs",".fx"],"excludeDirs":["bin","obj"]}`)
+	for _, f := range []string{
+		"ExploringGame/A.cs",
+		"ExploringGame/bin/Debug/B.cs",
+		"ExploringGame/D.fx",
+		"ExploringGame.UnitTests/C.cs",
+		"src/E.ts",
+	} {
+		put(t, root, f, "x")
+	}
+	gitAdd(t, root)
+	if out, err := RealGit(root, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "init"); err != nil {
+		t.Fatalf("%v %s", err, out)
+	}
+
+	got, err := ListTrackedSourceFiles(root, RealGit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"ExploringGame.UnitTests/C.cs",
+		"ExploringGame/A.cs",
+		"ExploringGame/D.fx",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func TestBreakupPlanPathCSharp(t *testing.T) {
+	got := BreakupPlanPath("ExploringGame/GeometryBuilder/Shape.cs", fixedNow)
+	want := "plans/october_2026/monolith_breakup/exploringgame_geometrybuilder_shape.md"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+
 func TestMonolithCheckWritesAPlanAndRatchets(t *testing.T) {
 	root := t.TempDir()
 	os.MkdirAll(filepath.Join(root, "agent_docs", "plans"), 0o755)

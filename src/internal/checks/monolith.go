@@ -84,8 +84,12 @@ func writeMonolith(root string, b MonolithBaseline) error {
 	return os.WriteFile(monolithFile(root), append(out, '\n'), 0o644)
 }
 
-// ListMonolithFiles is the hand-written source under src/ the check scans (sorted).
+// ListMonolithFiles is the hand-written source the check scans (sorted).
 func ListMonolithFiles(root string) []string {
+	return ListMonolithFilesWithConfig(root, ReadScanConfig(root))
+}
+
+func ListMonolithFilesWithConfig(root string, cfg ScanConfig) []string {
 	var results []string
 	var walk func(dir string)
 	walk = func(dir string) {
@@ -96,18 +100,27 @@ func ListMonolithFiles(root string) []string {
 		for _, e := range entries {
 			switch {
 			case e.IsDir():
-				if e.Name() != excludeDir {
+				if !cfg.IsExcludedDir(e.Name()) {
 					walk(filepath.Join(dir, e.Name()))
 				}
-			case (tsFileRE.MatchString(e.Name()) && !excludeFileRE.MatchString(e.Name())) || cssFileRE.MatchString(e.Name()):
+			case isMonolithFile(e.Name(), cfg):
 				rel, _ := filepath.Rel(root, filepath.Join(dir, e.Name()))
 				results = append(results, filepath.ToSlash(rel))
 			}
 		}
 	}
-	walk(filepath.Join(root, "src"))
+	for _, d := range cfg.Dirs {
+		walk(filepath.Join(root, filepath.FromSlash(d)))
+	}
 	sort.Strings(results)
 	return results
+}
+
+func isMonolithFile(name string, cfg ScanConfig) bool {
+	if len(cfg.Extensions) == 0 {
+		return (tsFileRE.MatchString(name) && !excludeFileRE.MatchString(name)) || cssFileRE.MatchString(name)
+	}
+	return cfg.HasExtension(name)
 }
 
 type Scanned struct {
@@ -249,7 +262,8 @@ var (
 
 // BreakupPlanPath is where the stub plan for an oversized file lives.
 func BreakupPlanPath(relSource string, now time.Time) string {
-	slug := srcExtRE.ReplaceAllString(relSource, "")
+	ext := filepath.Ext(relSource)
+	slug := strings.TrimSuffix(relSource, ext)
 	slug = nonSlugRE.ReplaceAllString(strings.ToLower(slug), "_")
 	slug = edgeUnderRE.ReplaceAllString(slug, "")
 	return fmt.Sprintf("plans/%s/monolith_breakup/%s.md", monthYearFolder(now), slug)

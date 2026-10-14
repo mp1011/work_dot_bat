@@ -124,6 +124,10 @@ type Project struct {
 	WorktreeCopyFiles    []string       `json:"worktreeCopyFiles,omitempty"`
 	ProjectStructureDoc  string         `json:"projectStructureDoc,omitempty"`
 	ProjectStructureDirs []string       `json:"projectStructureDirs,omitempty"`
+	ScanDirs             []string       `json:"scanDirs,omitempty"`
+	ScanRoots            []string       `json:"scanRoots,omitempty"`
+	ScanExtensions       []string       `json:"scanExtensions,omitempty"`
+	ExcludeDirs          []string       `json:"excludeDirs,omitempty"`
 	Agents               map[string]any `json:"agents,omitempty"`
 	PlanTemplate         string         `json:"planTemplate,omitempty"`
 	Instructions         map[string]any `json:"instructions,omitempty"`
@@ -141,6 +145,10 @@ type rawProject struct {
 	WorktreeCopyFiles    []string        `json:"worktreeCopyFiles,omitempty"`
 	ProjectStructureDoc  string          `json:"projectStructureDoc,omitempty"`
 	ProjectStructureDirs []string        `json:"projectStructureDirs,omitempty"`
+	ScanDirs             []string        `json:"scanDirs,omitempty"`
+	ScanRoots            []string        `json:"scanRoots,omitempty"`
+	ScanExtensions       []string        `json:"scanExtensions,omitempty"`
+	ExcludeDirs          []string        `json:"excludeDirs,omitempty"`
 	Agents               map[string]any  `json:"agents,omitempty"`
 	PlanTemplate         string          `json:"planTemplate,omitempty"`
 	Instructions         map[string]any  `json:"instructions,omitempty"`
@@ -157,6 +165,10 @@ func (p Project) MarshalJSON() ([]byte, error) {
 		WorktreeCopyFiles:    p.WorktreeCopyFiles,
 		ProjectStructureDoc:  p.ProjectStructureDoc,
 		ProjectStructureDirs: p.ProjectStructureDirs,
+		ScanDirs:             p.ScanDirs,
+		ScanRoots:            p.ScanRoots,
+		ScanExtensions:       p.ScanExtensions,
+		ExcludeDirs:          p.ExcludeDirs,
 		Agents:               p.Agents,
 		PlanTemplate:         p.PlanTemplate,
 		Instructions:         p.Instructions,
@@ -192,6 +204,10 @@ func (p *Project) UnmarshalJSON(b []byte) error {
 	p.WorktreeCopyFiles = raw.WorktreeCopyFiles
 	p.ProjectStructureDoc = raw.ProjectStructureDoc
 	p.ProjectStructureDirs = raw.ProjectStructureDirs
+	p.ScanDirs = raw.ScanDirs
+	p.ScanRoots = raw.ScanRoots
+	p.ScanExtensions = raw.ScanExtensions
+	p.ExcludeDirs = raw.ExcludeDirs
 	p.Agents = raw.Agents
 	p.PlanTemplate = raw.PlanTemplate
 	p.Instructions = raw.Instructions
@@ -208,6 +224,10 @@ func (p Project) HasConfig() bool {
 		len(p.WorktreeCopyFiles) > 0 ||
 		p.ProjectStructureDoc != "" ||
 		len(p.ProjectStructureDirs) > 0 ||
+		len(p.ScanDirs) > 0 ||
+		len(p.ScanRoots) > 0 ||
+		len(p.ScanExtensions) > 0 ||
+		len(p.ExcludeDirs) > 0 ||
 		len(p.Agents) > 0 ||
 		p.PlanTemplate != "" ||
 		len(p.Instructions) > 0

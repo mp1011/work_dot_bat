@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"work_dot_bat/src/internal/projectconfig"
+	"work_dot_bat/src/internal/repo"
 )
 
 // The machine-owned region of the structure doc is between these markers (inserted on first
@@ -574,27 +575,39 @@ type StructureConfig struct {
 	Dirs []string
 }
 
-// Defaults match the layout this tool was extracted from.
-const DefaultStructureDoc = "agent_docs/03_project_structure.md"
+// Defaults match the standard layout.
+const DefaultStructureDoc = "agent_docs/02_project_structure.md"
 
 var defaultStructureDirs = []string{"src", "e2e", "scripts", ".tools"}
 
 // ReadStructureConfig reads the optional per-repo overrides (projectStructureDoc,
 // projectStructureDirs); an unreadable config falls back to the defaults.
+// When called from a worktree, it resolves the main repository root so projects.json
+// configuration can be found. If the default doc (02_project_structure.md) does not exist
+// but legacy 03_project_structure.md does, it falls back to 03_project_structure.md.
 func ReadStructureConfig(root string) StructureConfig {
 	cfg := StructureConfig{Doc: DefaultStructureDoc, Dirs: defaultStructureDirs}
-	raw, err := projectconfig.ForProject(root, root)
-	if err != nil {
-		return cfg
+	mainRoot := repo.FindMainRepoRoot(root)
+	raw, err := projectconfig.ForProject(root, mainRoot)
+	if err == nil {
+		if d, ok := raw["projectStructureDoc"].(string); ok && d != "" {
+			cfg.Doc = d
+		}
+		if list, ok := raw["projectStructureDirs"].([]any); ok {
+			cfg.Dirs = nil
+			for _, v := range list {
+				if s, ok := v.(string); ok {
+					cfg.Dirs = append(cfg.Dirs, s)
+				}
+			}
+		}
 	}
-	if d, ok := raw["projectStructureDoc"].(string); ok && d != "" {
-		cfg.Doc = d
-	}
-	if list, ok := raw["projectStructureDirs"].([]any); ok {
-		cfg.Dirs = nil
-		for _, v := range list {
-			if s, ok := v.(string); ok {
-				cfg.Dirs = append(cfg.Dirs, s)
+	if cfg.Doc == DefaultStructureDoc {
+		p02 := filepath.Join(root, filepath.FromSlash(DefaultStructureDoc))
+		p03 := filepath.Join(root, "agent_docs", "03_project_structure.md")
+		if _, err := os.Stat(p02); os.IsNotExist(err) {
+			if _, err3 := os.Stat(p03); err3 == nil {
+				cfg.Doc = "agent_docs/03_project_structure.md"
 			}
 		}
 	}

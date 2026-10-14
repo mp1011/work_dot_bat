@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Legacy/compatibility alias: routes to work --run "$@"
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "$here/work" --run "$@"

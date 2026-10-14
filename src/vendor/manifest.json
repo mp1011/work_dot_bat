@@ -1,24 +1,24 @@
 {
   "files": {
     "scripts/work_dot_bat/check-audit.sh": {
-      "version": "2.0.0",
-      "date": "2026-10-03",
-      "sha256": "bdfeb0727d168d2194594a47b7afb39aca212afcac483b26d72dfdb5fd930b24"
+      "version": "2.0.1",
+      "date": "2026-10-14",
+      "sha256": "bf1615364bfc7a8ad98c27c14d2cb985971d8e37ddd6754a7c26fa21dd60c38b"
     },
     "scripts/work_dot_bat/check-duplication.sh": {
-      "version": "2.0.0",
-      "date": "2026-10-03",
-      "sha256": "593a97b914e2e1a365c54c848387b9d2b1c808ab5956f940281dba3240c9c800"
+      "version": "2.0.1",
+      "date": "2026-10-14",
+      "sha256": "9b58fab5ae8f41756d07a986efbcd7ed59b25ff05dfc165ccfb4b818c63850eb"
     },
     "scripts/work_dot_bat/check-monolith.sh": {
-      "version": "2.0.0",
-      "date": "2026-10-03",
-      "sha256": "964494fbda93e3202619435c4a86c3949ddcab70cd04b6584d27e9b81732b019"
+      "version": "2.0.1",
+      "date": "2026-10-14",
+      "sha256": "d70731df95faa807c1d72b0a5896e28e8e43ab83264b509f0a06a43703648f4f"
     },
     "scripts/work_dot_bat/check-skills.sh": {
-      "version": "2.0.0",
-      "date": "2026-10-03",
-      "sha256": "9476d4e938c7ed325a32b8077804187ecb9932ec4691b3822dbfe89bdcea8819"
+      "version": "2.0.1",
+      "date": "2026-10-14",
+      "sha256": "5bc0d6ecf2e95938bb10f90036f1ce8aa477e40e31c3634fecc3b6053c805b8c"
     },
     "scripts/work_dot_bat/check-source-assertions.sh": {
       "version": "1.1.0",
@@ -31,19 +31,19 @@
       "sha256": "cffbdb8bd87c02184cdb27e34979a5efaa3d2d38ad1b2c03918bd9b8c14737d1"
     },
     "scripts/work_dot_bat/list-tasks.sh": {
-      "version": "2.0.0",
-      "date": "2026-10-03",
-      "sha256": "cd65ed9f32173871a0cf3a19b0ebfc736b44f9826615f1ea5917720f7a3eb160"
+      "version": "2.0.1",
+      "date": "2026-10-14",
+      "sha256": "a33e4e25b1539c86b40e39d21694dd76dd63e8bd3ecd790c1dbc851a7b715729"
     },
     "scripts/work_dot_bat/plan-status.sh": {
-      "version": "2.0.1",
-      "date": "2026-10-12",
-      "sha256": "2d3f5e1955fdeb6c6dc04e17469a65f0b7d055a81825f5d53ce5f0125dd657f1"
+      "version": "2.0.2",
+      "date": "2026-10-14",
+      "sha256": "11cf67b746d1e7a739087e0edd0f265c3c5628d0a8212dd074efd02ddf5b6631"
     },
     "scripts/work_dot_bat/run-checks.sh": {
-      "version": "2.0.0",
-      "date": "2026-10-03",
-      "sha256": "4720299a1a50f7408b14d55af3cec9c704e5019cb56f55655d1bf7d52859f38f"
+      "version": "2.0.1",
+      "date": "2026-10-14",
+      "sha256": "7718a4ede0f2886877d23dcf20edf8b06e9f4f699d8128269b5edd63df53b58e"
     },
     "scripts/work_dot_bat/typescript/check-source-assertions.mjs": {
       "version": "1.0.0",
@@ -66,14 +66,14 @@
       "sha256": "5c0d9505d8ae92d568a073c06732b2e90ca5c9aee4b15fa24cd014c130525200"
     },
     "scripts/work_dot_bat/update-project-structure.sh": {
-      "version": "2.0.0",
-      "date": "2026-10-03",
-      "sha256": "321774493341145dd1e3711584fd286c38f1bcbed8a5996b7fa50b9d3740473a"
+      "version": "2.0.1",
+      "date": "2026-10-14",
+      "sha256": "7f3cda8cd95cce69ddf4a37b1a8c16760be50bcdec2b380eb8127d657c61b716"
     },
     "scripts/work_dot_bat/worktree-info.sh": {
-      "version": "2.0.0",
-      "date": "2026-10-03",
-      "sha256": "c947f91b489a62cdb97938e897824fd29b3081224b094aac13f197a92da5c7e2"
+      "version": "2.0.1",
+      "date": "2026-10-14",
+      "sha256": "555c4fbfa221f66a7b6f717f9ea92e8c44b42cf455acc5bdc4daf32978a73cf4"
     }
   }
 }

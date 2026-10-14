@@ -43,8 +43,12 @@ type Config struct {
 	ExtraChecks []ExtraCheck          `json:"extraChecks"`
 	Build       []Command             `json:"build"`
 	LightTest   *Command              `json:"lightTest"`
-	HeavyTest   *Command              `json:"heavyTest"`
-	Tests       *projects.TestsConfig `json:"-"`
+	HeavyTest      *Command              `json:"heavyTest"`
+	Tests          *projects.TestsConfig `json:"-"`
+	ScanDirs       []string              `json:"scanDirs,omitempty"`
+	ScanRoots      []string              `json:"scanRoots,omitempty"`
+	ScanExtensions []string              `json:"scanExtensions,omitempty"`
+	ExcludeDirs    []string              `json:"excludeDirs,omitempty"`
 }
 
 // LoadConfig reads <root>/work_dot_bat.config.json, falling back to projects.json.
@@ -540,7 +544,6 @@ func StructureMain(root string, argv []string, out io.Writer, git GitFunc) int {
 		for _, f := range unsummarized {
 			fmt.Fprintf(out, "  ? %s\n", f)
 		}
-		return 1
 	}
 	return 0
 }

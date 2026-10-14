@@ -36,6 +36,10 @@ type Config struct {
 	DevServer            *Command  `json:"devServer,omitempty"`
 	ProjectStructureDoc  string    `json:"projectStructureDoc,omitempty"`
 	ProjectStructureDirs []string  `json:"projectStructureDirs,omitempty"`
+	ScanDirs             []string  `json:"scanDirs,omitempty"`
+	ScanRoots            []string  `json:"scanRoots,omitempty"`
+	ScanExtensions       []string  `json:"scanExtensions,omitempty"`
+	ExcludeDirs          []string  `json:"excludeDirs,omitempty"`
 }
 
 func cmd(c string, args ...string) *Command { return &Command{Cmd: c, Args: args} }
@@ -161,6 +165,11 @@ func Validate(config any) []string {
 	}
 	if v, ok := c["worktreeCopyFiles"]; ok && !allStrings(v) {
 		errs = append(errs, `"worktreeCopyFiles": expected an array of repo-relative paths`)
+	}
+	for _, f := range []string{"scanDirs", "scanRoots", "scanExtensions", "excludeDirs"} {
+		if v, ok := c[f]; ok && !allStrings(v) {
+			errs = append(errs, fmt.Sprintf(`"%s": expected an array of strings`, f))
+		}
 	}
 	if v, ok := c["agents"]; ok {
 		if _, isObj := v.(map[string]any); !isObj {

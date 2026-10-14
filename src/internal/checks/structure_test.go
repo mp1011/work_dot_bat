@@ -1,6 +1,7 @@
 package checks
 
 import (
+	"bytes"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -257,15 +258,27 @@ func TestListGitFilesFiltersAndHonoursTheWorkingTree(t *testing.T) {
 
 func TestReadStructureConfig(t *testing.T) {
 	root := t.TempDir()
-	if c := ReadStructureConfig(root); c.Doc != "agent_docs/03_project_structure.md" || !reflect.DeepEqual(c.Dirs, []string{"src", "e2e", "scripts", ".tools"}) {
+	if c := ReadStructureConfig(root); c.Doc != "agent_docs/02_project_structure.md" || !reflect.DeepEqual(c.Dirs, []string{"src", "e2e", "scripts", ".tools"}) {
 		t.Errorf("defaults: %+v", c)
 	}
+
+	// Falls back to legacy 03_project_structure.md if 02_ does not exist on disk but 03_ does.
+	put(t, root, "agent_docs/03_project_structure.md", "# Structure")
+	if c := ReadStructureConfig(root); c.Doc != "agent_docs/03_project_structure.md" {
+		t.Errorf("fallback to 03 failed: %+v", c)
+	}
+	// Once 02_ exists, it takes precedence.
+	put(t, root, "agent_docs/02_project_structure.md", "# Structure")
+	if c := ReadStructureConfig(root); c.Doc != "agent_docs/02_project_structure.md" {
+		t.Errorf("02 precedence failed: %+v", c)
+	}
+
 	put(t, root, "work_dot_bat.config.json", `{"projectStructureDoc":"docs/s.md","projectStructureDirs":["lib","cmd"]}`)
 	if c := ReadStructureConfig(root); c.Doc != "docs/s.md" || !reflect.DeepEqual(c.Dirs, []string{"lib", "cmd"}) {
 		t.Errorf("configured: %+v", c)
 	}
 	put(t, root, "work_dot_bat.config.json", "{ nope")
-	if c := ReadStructureConfig(root); c.Doc != "agent_docs/03_project_structure.md" {
+	if c := ReadStructureConfig(root); c.Doc != "agent_docs/02_project_structure.md" {
 		t.Errorf("an unreadable config falls back to the defaults: %+v", c)
 	}
 
@@ -278,5 +291,45 @@ func TestReadStructureConfig(t *testing.T) {
 	t.Setenv(projects.RegistryEnv, regFile)
 	if c := ReadStructureConfig(projRoot); c.Doc != "agent_docs/custom.md" || !reflect.DeepEqual(c.Dirs, []string{"src", "pkg"}) {
 		t.Errorf("registry-configured failed: %+v", c)
+	}
+
+	// Test reading from inside a linked worktree resolves the main root's config
+	treeDir := filepath.Join(projRoot, ".worktrees", "feature-1")
+	os.MkdirAll(treeDir, 0o755)
+	os.WriteFile(filepath.Join(treeDir, ".git"), []byte("gitdir: "+filepath.ToSlash(projRoot)+"/.git/worktrees/feature-1\n"), 0o644)
+	if c := ReadStructureConfig(treeDir); c.Doc != "agent_docs/custom.md" || !reflect.DeepEqual(c.Dirs, []string{"src", "pkg"}) {
+		t.Errorf("worktree-configured failed: %+v", c)
+	}
+}
+
+func TestStructureMainExitCodes(t *testing.T) {
+	root := t.TempDir()
+	docPath := filepath.Join(root, "agent_docs", "02_project_structure.md")
+	put(t, root, "agent_docs/02_project_structure.md", "# Heading\n\n"+BeginMarker+"\n\n## src\n\n- `old.go` - Old summary.\n\n"+EndMarker+"\n")
+	git := func(dir string, args ...string) (string, error) {
+		return "src/old.go\nsrc/new.go\n", nil
+	}
+	put(t, root, "src/old.go", "package main")
+	put(t, root, "src/new.go", "package main")
+
+	var buf bytes.Buffer
+	// Without --check: update should succeed, write the file, report unsummarized, and exit 0.
+	code := StructureMain(root, nil, &buf, git)
+	if code != 0 {
+		t.Fatalf("expected update mode to return 0, got %d, output: %s", code, buf.String())
+	}
+	content, _ := os.ReadFile(docPath)
+	if !strings.Contains(string(content), "new.go") {
+		t.Fatalf("expected new.go in updated doc, got:\n%s", content)
+	}
+
+	// With --check: should return 1 because new.go has TODO: summarize.
+	buf.Reset()
+	code = StructureMain(root, []string{"--check"}, &buf, git)
+	if code != 1 {
+		t.Fatalf("expected --check with unsummarized to return 1, got %d", code)
+	}
+	if !strings.Contains(buf.String(), "TODO: summarize") {
+		t.Fatalf("expected check output to mention TODO: summarize, got: %s", buf.String())
 	}
 }

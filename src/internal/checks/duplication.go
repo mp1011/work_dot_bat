@@ -33,19 +33,34 @@ var (
 )
 
 func IsTrackedSourceFile(rel string) bool {
-	return trackedTSRE.MatchString(rel) && !excludeTestRE.MatchString(rel) && !excludeGenRE.MatchString(rel)
+	return IsTrackedSourceFileWithConfig(rel, DefaultScanConfig())
+}
+
+func IsTrackedSourceFileWithConfig(rel string, cfg ScanConfig) bool {
+	if cfg.IsPathExcluded(rel) {
+		return false
+	}
+	if len(cfg.Extensions) == 0 {
+		return trackedTSRE.MatchString(rel) && !excludeTestRE.MatchString(rel) && !excludeGenRE.MatchString(rel)
+	}
+	return cfg.HasExtension(rel)
 }
 
 // ListTrackedSourceFiles is the git-tracked source set (sorted); it can list a path the working
 // tree no longer has, which callers skip.
 func ListTrackedSourceFiles(root string, git GitFunc) ([]string, error) {
-	out, err := git(root, "ls-tree", "-r", "--name-only", "HEAD", "--", "src")
+	return ListTrackedSourceFilesWithConfig(root, ReadScanConfig(root), git)
+}
+
+func ListTrackedSourceFilesWithConfig(root string, cfg ScanConfig, git GitFunc) ([]string, error) {
+	args := append([]string{"ls-tree", "-r", "--name-only", "HEAD", "--"}, cfg.Dirs...)
+	out, err := git(root, args...)
 	if err != nil {
 		return nil, err
 	}
 	var files []string
 	for _, l := range lineSplitRE.Split(out, -1) {
-		if l = strings.TrimSpace(l); l != "" && IsTrackedSourceFile(l) {
+		if l = strings.TrimSpace(l); l != "" && IsTrackedSourceFileWithConfig(l, cfg) {
 			files = append(files, l)
 		}
 	}
