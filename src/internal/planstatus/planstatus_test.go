@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -256,3 +257,51 @@ func TestUnknownCommand(t *testing.T) {
 		t.Fatalf("code=%d err=%q", code, e)
 	}
 }
+
+func TestParseFrontmatterPlanOrder(t *testing.T) {
+	inline := "---\nstatus: In Progress\nplan_order: [plans/b.md, plans/a.md]\n---\nbody\n"
+	fm := ParseFrontmatter(inline)
+	if !reflect.DeepEqual(fm.PlanOrder, []string{"plans/b.md", "plans/a.md"}) {
+		t.Errorf("inline plan_order got %v", fm.PlanOrder)
+	}
+
+	bullet := "---\nstatus: In Progress\nplan_order:\n  - plans/sub/02.md\n  - plans/sub/01.md\n---\nbody\n"
+	fm = ParseFrontmatter(bullet)
+	if !reflect.DeepEqual(fm.PlanOrder, []string{"plans/sub/02.md", "plans/sub/01.md"}) {
+		t.Errorf("bullet plan_order got %v", fm.PlanOrder)
+	}
+}
+
+func TestSetFrontmatterPlanOrder(t *testing.T) {
+	content := "---\nstatus: In Progress\n---\nbody\n"
+	updated := SetFrontmatterPlanOrder(content, []string{"plans/02.md", "plans/01.md"})
+	want := "---\nstatus: In Progress\nplan_order:\n  - plans/02.md\n  - plans/01.md\n---\n\nbody\n"
+	if updated != want {
+		t.Errorf("got:\n%s\nwant:\n%s", updated, want)
+	}
+
+	// Replacing existing plan_order
+	replaced := SetFrontmatterPlanOrder(updated, []string{"plans/03.md"})
+	wantReplaced := "---\nstatus: In Progress\nplan_order:\n  - plans/03.md\n---\n\nbody\n"
+	if replaced != wantReplaced {
+		t.Errorf("got:\n%s\nwant:\n%s", replaced, wantReplaced)
+	}
+}
+
+func TestCliSetPlanOrder(t *testing.T) {
+	root := t.TempDir()
+	plan(t, root, "plans/parent.md", "---\nstatus: In Progress\n---\n\n# Parent\n")
+	code, out, errOut := run(t, root, "set-plan-order", "plans/parent.md", "plans/02.md", "plans/01.md")
+	if code != 0 {
+		t.Fatalf("code=%d err=%s", code, errOut)
+	}
+	if out != "Set plan_order for plans/parent.md (2 task(s))\n" {
+		t.Errorf("out=%q", out)
+	}
+	fm := ParseFrontmatter(read(t, root, "plans/parent.md"))
+	if !reflect.DeepEqual(fm.PlanOrder, []string{"plans/02.md", "plans/01.md"}) {
+		t.Errorf("got %v", fm.PlanOrder)
+	}
+}
+
+

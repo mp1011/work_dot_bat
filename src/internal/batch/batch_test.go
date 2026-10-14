@@ -234,6 +234,7 @@ type loopHarness struct {
 	tests      [][]string
 	calls      int
 	layerCalls []string
+	readPlan   func(planPath string) string
 }
 
 func (h *loopHarness) set(path, status string) {
@@ -267,14 +268,23 @@ func (h *loopHarness) run(parent planstatus.Entry) LoopResult {
 			}
 			return nil
 		},
-		ReadPlan:     func(string) string { return "# Test Plan" },
+		ReadPlan: func(p string) string {
+			if h.readPlan != nil {
+				return h.readPlan(p)
+			}
+			return "# Test Plan"
+		},
 		UpdateStatus: func(p, s string) bool { h.set(p, s); return true },
 		OnLog:        func(m string) { h.logs = append(h.logs, m) },
 	})
 }
 
 func threeTaskSet() (planstatus.Entry, []planstatus.Entry) {
-	parent := planstatus.Entry{Path: "plans/test/plan.md", Status: "In Progress"}
+	parent := planstatus.Entry{
+		Path:      "plans/test/plan.md",
+		Status:    "In Progress",
+		PlanOrder: []string{"plans/test/01.md", "plans/test/02.md"},
+	}
 	return parent, entries(parent,
 		planstatus.Entry{Path: "plans/test/01.md", Status: "Not Started", SubtaskOf: "plans/test/plan.md"},
 		planstatus.Entry{Path: "plans/test/02.md", Status: "Not Started", SubtaskOf: "plans/test/plan.md"},
@@ -407,3 +417,109 @@ func TestLoopFailingLightTestPreventsProceeding(t *testing.T) {
 		}
 	}
 }
+
+func TestLoopWithPreexistingPlanOrder(t *testing.T) {
+	parent := planstatus.Entry{
+		Path:      "plans/test/plan.md",
+		Status:    "In Progress",
+		PlanOrder: []string{"plans/test/02.md", "plans/test/nested/01.md", "plans/test/01.md"},
+	}
+	tasks := entries(
+		parent,
+		planstatus.Entry{Path: "plans/test/01.md", Status: "Not Started", SubtaskOf: "plans/test/plan.md"},
+		planstatus.Entry{Path: "plans/test/02.md", Status: "Not Started", SubtaskOf: "plans/test/plan.md"},
+		planstatus.Entry{Path: "plans/test/nested/01.md", Status: "Not Started", SubtaskOf: "plans/test/nested/plan.md"},
+	)
+	h := &loopHarness{t: t, tasks: tasks}
+	res := h.run(parent)
+	if !res.Success {
+		t.Fatalf("expected success, got %+v", res)
+	}
+	wantInvoked := []string{
+		"agent_docs/plans/test/02.md",
+		"agent_docs/plans/test/nested/01.md",
+		"agent_docs/plans/test/01.md",
+		"agent_docs/plans/test/plan.md",
+	}
+	if !reflect.DeepEqual(h.invoked, wantInvoked) {
+		t.Errorf("invoked sequence = %v, want %v", h.invoked, wantInvoked)
+	}
+}
+
+func TestLoopInvokesPlanOrderWhenMissing(t *testing.T) {
+	parent := planstatus.Entry{Path: "plans/test/plan.md", Status: "In Progress"}
+	tasks := entries(
+		parent,
+		planstatus.Entry{Path: "plans/test/01.md", Status: "Not Started", SubtaskOf: "plans/test/plan.md"},
+		planstatus.Entry{Path: "plans/test/02.md", Status: "Not Started", SubtaskOf: "plans/test/plan.md"},
+	)
+	parentContent := "---\nstatus: In Progress\n---\n# Parent\n"
+	h := &loopHarness{
+		t:     t,
+		tasks: tasks,
+		readPlan: func(p string) string {
+			if strings.HasSuffix(p, "plan.md") {
+				return parentContent
+			}
+			return "# Subtask\n"
+		},
+	}
+	h.agent = func(h *loopHarness, planPath string, attempt int) AgentResult {
+		if strings.HasSuffix(planPath, "plan.md") && len(h.invoked) == 1 {
+			// First invocation on parent is /plan-order
+			parentContent = "---\nstatus: In Progress\nplan_order:\n  - plans/test/02.md\n  - plans/test/01.md\n---\n# Parent\n"
+			return AgentResult{}
+		}
+		h.set(planPath, "Ready for Review")
+		return AgentResult{}
+	}
+	res := h.run(parent)
+	if !res.Success {
+		t.Fatalf("expected success, got %+v", res)
+	}
+	// /plan-order is invoked first on parent, then 02.md, 01.md, then parent /do-work-yolo
+	wantInvoked := []string{
+		"agent_docs/plans/test/plan.md",
+		"agent_docs/plans/test/02.md",
+		"agent_docs/plans/test/01.md",
+		"agent_docs/plans/test/plan.md",
+	}
+	if !reflect.DeepEqual(h.invoked, wantInvoked) {
+		t.Errorf("invoked sequence = %v, want %v", h.invoked, wantInvoked)
+	}
+	if h.prompts[0] != "/plan-order agent_docs/plans/test/plan.md" {
+		t.Errorf("first prompt = %q, want /plan-order prompt", h.prompts[0])
+	}
+}
+
+func TestLoopFallbackWhenPlanOrderMissingAndNotCreated(t *testing.T) {
+	parent := planstatus.Entry{Path: "plans/test/plan.md", Status: "In Progress"}
+	tasks := entries(
+		parent,
+		planstatus.Entry{Path: "plans/test/01.md", Status: "Not Started", SubtaskOf: "plans/test/plan.md"},
+		planstatus.Entry{Path: "plans/test/02.md", Status: "Not Started", SubtaskOf: "plans/test/plan.md"},
+	)
+	h := &loopHarness{t: t, tasks: tasks}
+	h.agent = func(h *loopHarness, planPath string, attempt int) AgentResult {
+		// Agent does not write plan_order when called with /plan-order
+		if !strings.HasPrefix(h.prompts[len(h.prompts)-1], "/plan-order") {
+			h.set(planPath, "Ready for Review")
+		}
+		return AgentResult{}
+	}
+	res := h.run(parent)
+	if !res.Success {
+		t.Fatalf("expected success, got %+v", res)
+	}
+	// /plan-order called first, then falls back to default eligible subtasks (01.md, 02.md, plan.md)
+	wantInvoked := []string{
+		"agent_docs/plans/test/plan.md",
+		"agent_docs/plans/test/01.md",
+		"agent_docs/plans/test/02.md",
+		"agent_docs/plans/test/plan.md",
+	}
+	if !reflect.DeepEqual(h.invoked, wantInvoked) {
+		t.Errorf("invoked sequence = %v, want %v", h.invoked, wantInvoked)
+	}
+}
+

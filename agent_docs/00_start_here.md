@@ -43,6 +43,7 @@ Start every session by reading **only**:
 | Small change or bug fix | `agent_docs/instructions/low_trust/do-work.md` (interactive) or `high_trust/do-work-yolo.md` (unattended) |
 | Break a large task into subtasks | `agent_docs/instructions/high_trust/task-breakdown.md` |
 | Work the next subtask of a plan | `agent_docs/instructions/high_trust/next-subtask-yolo.md` |
+| Order subtasks for a parent plan | `agent_docs/instructions/high_trust/plan-order.md` |
 | Break up an oversized file | `agent_docs/instructions/high_trust/monolith-breakup.md` |
 | A behavior is hard to test | `agent_docs/instructions/testability_escalation.md` |
 | Before pushing | `agent_docs/instructions/low_trust/prepare-for-push.md` |

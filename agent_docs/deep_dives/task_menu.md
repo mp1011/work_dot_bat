@@ -55,6 +55,9 @@ Pure, injected-side-effect port of `loop-work.mjs` and the shared parts of `batc
 Loop mode refuses to start while `App.RunTests` is nil (the check runner is subtask 08): calling work "done" without running the tests would be worse than not running. Pause-and-resume after a bounce is the daemon's job (05); loop mode stops, as in Node.
 Path ordering uses byte comparison where Node used `localeCompare`; it only differs for exotic filenames.
 
+When `RunLoopUntilDone` begins, it checks the parent plan's frontmatter for a `plan_order` array. If absent, it invokes the `/plan-order` agent skill once on the parent plan to determine and persist a specific task execution order across direct and nested subtasks. The loop then chooses each incomplete (`IsSubtaskEligible`) subtask in `plan_order` sequence. If `plan_order` is absent or empty, it falls back to default eligible subtasks (`GetEligibleSubtasks`).
+
+
 # Auto daemon and status (`internal/daemon`)
 
 - `plans.go` — the pure planner: `Eligibility` (auto or auto-ancestor; no own subtasks; Not Started/In Progress; committed; earlier siblings resolved; `depends_on` resolved), `DaemonBranchFor`, `ReadPlanStates` (worktree copy wins when the plan's daemon branch has a live worktree), `FormatAutoStatusReport`.

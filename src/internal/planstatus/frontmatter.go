@@ -80,6 +80,7 @@ type Frontmatter struct {
 	SubtaskOf     string
 	DependsOn     string
 	BlockedBy     []string
+	PlanOrder     []string
 	Verification  string // "manual" or ""
 	Body          string
 }
@@ -96,8 +97,8 @@ func fieldValue(lines []string, key string) (string, bool) {
 	return "", false
 }
 
-func parseBlockedBy(lines []string) []string {
-	re := keyRE("blocked_by")
+func parseStringList(lines []string, key string) []string {
+	re := keyRE(key)
 	idx := -1
 	for i, l := range lines {
 		if re.MatchString(l) {
@@ -139,6 +140,14 @@ func parseBlockedBy(lines []string) []string {
 	return result
 }
 
+func parseBlockedBy(lines []string) []string {
+	return parseStringList(lines, "blocked_by")
+}
+
+func parsePlanOrder(lines []string) []string {
+	return parseStringList(lines, "plan_order")
+}
+
 func splitLines(s string) []string {
 	return strings.Split(strings.ReplaceAll(s, "\r\n", "\n"), "\n")
 }
@@ -174,11 +183,14 @@ func ParseFrontmatter(content string) Frontmatter {
 		fm.DependsOn = NormalizePlanPath(v)
 	}
 	fm.BlockedBy = parseBlockedBy(lines)
+	fm.PlanOrder = parsePlanOrder(lines)
 	if v, ok := fieldValue(lines, "verification"); ok && v == "manual" {
 		fm.Verification = "manual"
 	}
 	return fm
 }
+
+var topKeyRE = regexp.MustCompile(`^[A-Za-z0-9_-]+:\s*`)
 
 // splitBlock returns the block's non-blank lines whose key is not in drop, and the body.
 func splitBlock(content string, drop ...string) (other []string, body string) {
@@ -186,20 +198,30 @@ func splitBlock(content string, drop ...string) (other []string, body string) {
 	if m == nil {
 		return nil, content
 	}
-	for _, l := range splitLines(m[1]) {
+	lines := splitLines(m[1])
+	droppingMultiline := false
+	bullet := regexp.MustCompile(`^\s*-\s+`)
+	indented := regexp.MustCompile(`^\s+`)
+
+	for _, l := range lines {
 		if strings.TrimSpace(l) == "" {
 			continue
 		}
-		dropped := false
-		for _, k := range drop {
-			if keyRE(k).MatchString(l) {
-				dropped = true
-				break
+		if topKeyRE.MatchString(l) {
+			droppingMultiline = false
+			for _, k := range drop {
+				if keyRE(k).MatchString(l) {
+					droppingMultiline = true
+					break
+				}
 			}
+			if droppingMultiline {
+				continue
+			}
+		} else if droppingMultiline && (bullet.MatchString(l) || indented.MatchString(l)) {
+			continue
 		}
-		if !dropped {
-			other = append(other, l)
-		}
+		other = append(other, l)
 	}
 	return other, content[len(m[0]):]
 }
@@ -221,6 +243,19 @@ func SetFrontmatterVerification(content, verification string) string {
 	block := append([]string{"---"}, other...)
 	if verification != "" {
 		block = append(block, "verification: "+verification)
+	}
+	return assemble(append(block, "---"), body)
+}
+
+// SetFrontmatterPlanOrder adds, replaces, or (when empty) removes plan_order:.
+func SetFrontmatterPlanOrder(content string, order []string) string {
+	other, body := splitBlock(content, "plan_order")
+	block := append([]string{"---"}, other...)
+	if len(order) > 0 {
+		block = append(block, "plan_order:")
+		for _, item := range order {
+			block = append(block, "  - "+NormalizePlanPath(item))
+		}
 	}
 	return assemble(append(block, "---"), body)
 }

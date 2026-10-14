@@ -28,6 +28,7 @@ type Entry struct {
 	SubtaskOf      string   `json:"subtask_of,omitempty"`
 	DependsOn      string   `json:"depends_on,omitempty"`
 	BlockedBy      []string `json:"blocked_by,omitempty"`
+	PlanOrder      []string `json:"plan_order,omitempty"`
 	Auto           bool     `json:"auto,omitempty"`
 	Priority       int      `json:"priority,omitempty"`
 	Verification   string   `json:"verification,omitempty"`
@@ -94,6 +95,7 @@ func ReadStatus(root string) []Entry {
 			SubtaskOf:    fm.SubtaskOf,
 			DependsOn:    fm.DependsOn,
 			BlockedBy:    fm.BlockedBy,
+			PlanOrder:    fm.PlanOrder,
 			Auto:         fm.Auto,
 			Priority:     fm.Priority,
 			Verification: fm.Verification,

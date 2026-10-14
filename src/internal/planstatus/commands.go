@@ -158,6 +158,18 @@ func SetVerification(root, entryPath, verification string) error {
 	return nil
 }
 
+func SetPlanOrder(root, entryPath string, order []string) error {
+	content, ok := readFile(root, entryPath)
+	if !ok || ParseFrontmatter(content).Status == nil {
+		return errf(`No entry found for "%s"`, entryPath)
+	}
+	if err := write(root, entryPath, SetFrontmatterPlanOrder(content, order)); err != nil {
+		return err
+	}
+	WriteShim(root)
+	return nil
+}
+
 // BackfillSubtasks sets subtask_of on every plan file that shares a folder with a plan.md.
 func BackfillSubtasks(root string) []string {
 	updated := []string{}

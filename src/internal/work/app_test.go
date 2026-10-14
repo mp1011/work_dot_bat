@@ -434,7 +434,7 @@ var _ = exec.Command
 // runs, attempts recorded in the ledger.
 func TestLoopModeRunsNonInteractively(t *testing.T) {
 	f := newFixture(t, "l", "c", "s")
-	writePlan(t, f.root, "plans/p/plan.md", "---\nstatus: In Progress\n---\n\n# GOAL\nparent\n")
+	writePlan(t, f.root, "plans/p/plan.md", "---\nstatus: In Progress\nplan_order:\n  - plans/p/01.md\n---\n\n# GOAL\nparent\n")
 	writePlan(t, f.root, "plans/p/01.md", "---\nstatus: Not Started\nsubtask_of: plans/p/plan.md\n---\n\n# GOAL\nchild\n")
 	f.selecting("plans/p/plan.md")
 	f.app.RunTests = func(layers ...string) []string { return nil }
@@ -460,6 +460,38 @@ func TestLoopModeRunsNonInteractively(t *testing.T) {
 	}
 	if got := len(agentsession.ReadLedger(repo.LedgerPath(f.root))); got != 2 {
 		t.Errorf("ledger rows %d", got)
+	}
+	if !strings.Contains(f.out.String(), "[Loop Complete]") {
+		t.Errorf("%s", f.out.String())
+	}
+}
+
+func TestLoopModeInvokesPlanOrderWhenMissing(t *testing.T) {
+	f := newFixture(t, "l", "c", "s")
+	writePlan(t, f.root, "plans/p/plan.md", "---\nstatus: In Progress\n---\n\n# GOAL\nparent\n")
+	writePlan(t, f.root, "plans/p/01.md", "---\nstatus: Not Started\nsubtask_of: plans/p/plan.md\n---\n\n# GOAL\nchild\n")
+	f.selecting("plans/p/plan.md")
+	f.app.RunTests = func(layers ...string) []string { return nil }
+	f.onAgent = func(context.Context) int {
+		last := f.agent[len(f.agent)-1].Args
+		prompt := last[len(last)-1]
+		if strings.HasPrefix(prompt, "/plan-order") {
+			writePlan(t, f.root, "plans/p/plan.md", "---\nstatus: In Progress\nplan_order:\n  - plans/p/01.md\n---\n\n# GOAL\nparent\n")
+			return 0
+		}
+		for _, p := range []string{"plans/p/01.md", "plans/p/plan.md"} {
+			if strings.Contains(prompt, "agent_docs/"+p) {
+				planStatusSet(t, f.root, p, "Ready for Review")
+			}
+		}
+		return 0
+	}
+	f.run()
+	if len(f.agent) != 3 {
+		t.Fatalf("agent runs %d\n%s", len(f.agent), f.out.String())
+	}
+	if !strings.HasPrefix(f.agent[0].Args[len(f.agent[0].Args)-1], "/plan-order") {
+		t.Errorf("expected first run to be /plan-order, got %s", f.agent[0].Args[len(f.agent[0].Args)-1])
 	}
 	if !strings.Contains(f.out.String(), "[Loop Complete]") {
 		t.Errorf("%s", f.out.String())

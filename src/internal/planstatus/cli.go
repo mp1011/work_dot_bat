@@ -18,7 +18,7 @@ type CLI struct {
 	Now     time.Time
 }
 
-const usage = "Usage: plan-status.sh <add|add-subtask|set|set-verification|list|list-tasks|list-changed-done|check|backfill-subtasks|ensure-frontmatter|regenerate> ..."
+const usage = "Usage: plan-status.sh <add|add-subtask|set|set-verification|set-plan-order|list|list-tasks|list-changed-done|check|backfill-subtasks|ensure-frontmatter|regenerate> ..."
 
 // Run executes one plan-status command and returns the process exit code.
 func (c CLI) Run(argv []string) int {
@@ -110,6 +110,16 @@ func (c CLI) dispatch(cmd string, rest []string) (int, error) {
 			return 0, err
 		}
 		c.printf("Set %s verification -> %s\n", rest[0], rest[1])
+	case "set-plan-order":
+		if len(rest) == 0 {
+			return 0, errf("Usage: plan-status.sh set-plan-order <path> [subtask1 subtask2 ...]")
+		}
+		path := rest[0]
+		order := rest[1:]
+		if err := SetPlanOrder(c.Root, path, order); err != nil {
+			return 0, err
+		}
+		c.printf("Set plan_order for %s (%d task(s))\n", path, len(order))
 	case "regenerate":
 		if WriteShim(c.Root) {
 			c.printf("Regenerated agent_docs/plan_status.js (%d entries).\n", len(ReadStatus(c.Root)))

@@ -87,6 +87,25 @@ func find(tasks []planstatus.Entry, path string) (planstatus.Entry, bool) {
 	return planstatus.Entry{}, false
 }
 
+func getPlanOrder(r LoopRun) []string {
+	if r.ReadPlan != nil {
+		if content := r.ReadPlan(agentDocsPath(r.Parent.Path)); content != "" {
+			if fm := planstatus.ParseFrontmatter(content); len(fm.PlanOrder) > 0 {
+				return fm.PlanOrder
+			}
+		}
+	}
+	if len(r.Parent.PlanOrder) > 0 {
+		return r.Parent.PlanOrder
+	}
+	if r.GetTasks != nil {
+		if p, ok := find(r.GetTasks(), r.Parent.Path); ok && len(p.PlanOrder) > 0 {
+			return p.PlanOrder
+		}
+	}
+	return nil
+}
+
 // RunLoopUntilDone works every eligible subtask of the parent in order, then the parent itself,
 // each non-interactively: invoke the work skill, retry once if the
 // plan is not Ready for Review, run the automated tests with up to two fix-ups, and stop at the
@@ -100,8 +119,46 @@ func RunLoopUntilDone(r LoopRun) LoopResult {
 		logf("\n[Agent usage limit hit] Ending loop.")
 		return LoopResult{Reason: "rate-limited", Task: t}
 	}
+	planOrderAttempted := false
 	for {
-		eligible := GetEligibleSubtasks(r.Parent, r.GetTasks())
+		planOrder := getPlanOrder(r)
+		if len(planOrder) == 0 && !planOrderAttempted && r.RunAgent != nil {
+			planOrderAttempted = true
+			parentPlanPath := agentDocsPath(r.Parent.Path)
+			logf("\nParent plan has no plan_order in frontmatter. Invoking /plan-order on " + parentPlanPath + "...")
+			if a := r.RunAgent("/plan-order "+parentPlanPath, parentPlanPath, 1); a.RateLimited {
+				return ratelimited(r.Parent)
+			}
+			planOrder = getPlanOrder(r)
+		}
+
+		var eligible []planstatus.Entry
+		if len(planOrder) > 0 {
+			var tasks []planstatus.Entry
+			if r.GetTasks != nil {
+				tasks = r.GetTasks()
+			}
+			parentNorm := planstatus.NormalizePlanPath(r.Parent.Path)
+			for _, p := range planOrder {
+				if planstatus.NormalizePlanPath(p) == parentNorm {
+					continue
+				}
+				t, ok := find(tasks, p)
+				if !ok {
+					continue
+				}
+				if IsSubtaskEligible(t) {
+					eligible = append(eligible, t)
+				}
+			}
+		} else {
+			var tasks []planstatus.Entry
+			if r.GetTasks != nil {
+				tasks = r.GetTasks()
+			}
+			eligible = GetEligibleSubtasks(r.Parent, tasks)
+		}
+
 		isParentRun := len(eligible) == 0
 		target := r.Parent
 		if !isParentRun {
