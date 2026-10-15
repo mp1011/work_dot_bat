@@ -15,10 +15,11 @@ var DenyRules = []string{"Bash(git commit*)", "Bash(git push*)", "PowerShell(git
 const (
 	PushMessage = "Blocked: the prepare-for-push script performs a real git push and must be run by the human directly from their own terminal, not invoked by Claude."
 	WorkMessage = "Blocked: work is an interactive human tool that can commit, push, and set auto: true on a plan; it must be run by the human directly from their own terminal, not invoked by Claude."
+	GitMessage  = "Blocked: git commit and git push must be run by the human directly from their own terminal, not invoked by Claude."
 
 	// HookCommand is what settings.json runs for every Bash/PowerShell tool call. It reads the
 	// tool-call JSON on stdin and exits 2 (with the message on stderr) to block it.
-	HookCommand = "work_dot_bat safety-hook"
+	HookCommand = `bin="${WORK_DOT_BAT_BIN:-work_dot_bat}"; if ! command -v "$bin" >/dev/null 2>&1; then echo "work_dot_bat binary not found: put it on PATH or set WORK_DOT_BAT_BIN." >&2; exit 2; fi; exec "$bin" safety-hook`
 	// hookMarker recognises an installed hook; legacyMarker an older inline Node one.
 	hookMarker   = "safety-hook"
 	legacyMarker = "prepare_for_push"
@@ -29,6 +30,7 @@ const (
 var (
 	pushRE = regexp.MustCompile(`(?i)prepare_for_push\.(js|bat)\b|launch\.mjs["']?\s+prepare_for_push\b|work_dot_bat(\.exe)?["']?\s+prepare_for_push\b`)
 	workRE = regexp.MustCompile(`(?i)\bwork\.(js|bat)\b|launch\.mjs["']?\s+work\b|work_dot_bat(\.exe)?["']?\s+work\b`)
+	gitRE  = regexp.MustCompile(`(?i)\bgit(\.exe)?\s+(commit|push)\b`)
 )
 
 // Check decides one hook call. input is the hook JSON from stdin; it returns the exit code (0
@@ -48,6 +50,8 @@ func Check(input []byte) (code int, message string) {
 		return 2, PushMessage
 	case workRE.MatchString(cmd):
 		return 2, WorkMessage
+	case gitRE.MatchString(cmd):
+		return 2, GitMessage
 	}
 	return 0, ""
 }
@@ -200,7 +204,7 @@ func Merge(existing []byte) (Merged, error) {
 			added = append(added, rule)
 		}
 	}
-	denyOut, _ := json.Marshal(deny)
+	denyOut := marshalPlain(deny)
 	perms.set("deny", denyOut)
 	root.set("permissions", perms.raw())
 
@@ -217,7 +221,7 @@ func Merge(existing []byte) (Merged, error) {
 		pre = append(pre, marshalPlain(hookEntry{Matcher: "Bash|PowerShell", Hooks: []hookSpec{{Type: "command", Shell: "bash", Command: HookCommand}}}))
 		added = append(added, "PreToolUse safety hook")
 	}
-	preOut, _ := json.Marshal(pre)
+	preOut := marshalPlain(pre)
 	hooks.set("PreToolUse", preOut)
 	root.set("hooks", hooks.raw())
 

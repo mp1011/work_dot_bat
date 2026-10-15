@@ -13,8 +13,8 @@
 #   scripts/work_dot_bat/plan-status.sh set <path> <status> [--human]              # change an existing plan file's status ("Skipped"/"Cancelled" need --human)
 #   scripts/work_dot_bat/plan-status.sh set-verification <path> <manual|automated> # mark whether an automated test covers this plan's behavior
 #   scripts/work_dot_bat/plan-status.sh list [status]         # print entries, optionally filtered
-#   scripts/work_dot_bat/plan-status.sh list-tasks [--free]   # print open tasks, indexed by number, worktree- and claim-annotated
-#                                                 #   --free: only tasks that are unclaimed and not already advanced in a worktree
+#   scripts/work_dot_bat/plan-status.sh list-tasks [--free]   # print open tasks, indexed by number, worktree-annotated
+#                                                 #   --free: only tasks not already advanced in a worktree
 #                                                 #   ends with an unnumbered "N parked suggestions" footer when any are parked
 #   scripts/work_dot_bat/plan-status.sh list-changed-done [ref] # print changed plans marked Done or Ready for Review against ref (default origin/main)
 #   scripts/work_dot_bat/plan-status.sh backfill-subtasks     # backfill missing subtask_of frontmatter in plan.md folders

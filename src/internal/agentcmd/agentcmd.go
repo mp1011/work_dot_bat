@@ -76,11 +76,11 @@ func BuildInvocation(agent, repoRoot, prompt string, o InvocationOptions, s Sett
 	return BuildCommand(agent, CommandOptions{RepoRoot: repoRoot, Prompt: prompt, SessionID: o.SessionID, LogFile: log}, s)
 }
 
-// BuildDoWorkYoloPrompt: launcherHoldsClaim tells the agent not to mark 'Ready for Review'
+// BuildDoWorkYoloPrompt: skipReadyForReview tells the agent not to mark 'Ready for Review'
 // directly because the automated test harness runs verification after exit.
-func BuildDoWorkYoloPrompt(planPath string, launcherHoldsClaim bool) string {
+func BuildDoWorkYoloPrompt(planPath string, skipReadyForReview bool) string {
 	base := "/do-work-yolo " + planPath
-	if !launcherHoldsClaim {
+	if !skipReadyForReview {
 		return base
 	}
 	return base + "\n\nNote: do not mark the plan 'Ready for Review' — the automated test harness runs verification after you " +
@@ -114,7 +114,7 @@ const ImmediatePlanNote = "\n\nNote: this is the immediate plan. Fix the failure
 	"Do not run `plan-status.sh` on it (skip the \"Ready for Review\" step) and do not edit or erase the file: " +
 	"the Work script sets it Done and clears it when the automations pass."
 
-func BuildRetryPrompt(planPath, currentStatus string, launcherHoldsClaim bool) string {
+func BuildRetryPrompt(planPath, currentStatus string) string {
 	return fmt.Sprintf("The previous execution of /do-work-yolo %s ended with status \"%s\" instead of \"Ready for Review\".\n\n", planPath, currentStatus) +
 		fmt.Sprintf("Please continue working on this task using /do-work-yolo %s. Complete all remaining requirements, ", planPath) +
 		"ensure automated tests pass, and set the task status to \"Ready for Review\" via " +

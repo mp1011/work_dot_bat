@@ -75,14 +75,10 @@ func TestPrompts(t *testing.T) {
 		t.Error(got)
 	}
 
-	got = BuildRetryPrompt("p.md", "In Progress", false)
+	got = BuildRetryPrompt("p.md", "In Progress")
 	want = "The previous execution of /do-work-yolo p.md ended with status \"In Progress\" instead of \"Ready for Review\".\n\n" +
 		"Please continue working on this task using /do-work-yolo p.md. Complete all remaining requirements, ensure automated tests pass, " +
 		"and set the task status to \"Ready for Review\" via `scripts/work_dot_bat/plan-status.sh set p.md \"Ready for Review\"`."
-	if got != want {
-		t.Error(got)
-	}
-	got = BuildRetryPrompt("p.md", "In Progress", true)
 	if got != want {
 		t.Error(got)
 	}

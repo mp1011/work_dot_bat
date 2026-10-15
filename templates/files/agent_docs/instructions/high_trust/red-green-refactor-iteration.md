@@ -7,4 +7,5 @@ Solve a small coding problem test-first. Write exactly ONE test — isolate a si
 4. Implement the minimum to pass (read any matching convention doc in `agent_docs\deep_dives\` first). Run it to confirm.
 5. Refactor the implementation if it isn't maintainable — never the test.
 6. If the change is visible to the project's heavy tests, add/update the matching heavy test and run {{heavy_test}}. Skip otherwise.
-7. `scripts/work_dot_bat/plan-status.sh set <path> "Ready for Review"` (never `"Done"` — only the user confirms that).
+7. If you added, moved or deleted files: run `scripts/work_dot_bat/update-project-structure.sh`, then replace each `TODO: summarize` placeholder with a one-line summary of what the file is for (read the file first), and confirm with `scripts/work_dot_bat/update-project-structure.sh --check`.
+8. `scripts/work_dot_bat/plan-status.sh set <path> "Ready for Review"` (never `"Done"` — only the user confirms that).

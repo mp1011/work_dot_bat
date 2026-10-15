@@ -319,7 +319,7 @@ func TestUsageLimitPausesThenContinues(t *testing.T) {
 	}
 }
 
-func TestCancellationReleasesTheClaim(t *testing.T) {
+func TestCancellationStopsRun(t *testing.T) {
 	g := newRig(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	g.r.RunAgent = func(ctx context.Context, prompt string, m StepMeta) StepRun {

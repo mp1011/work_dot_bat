@@ -39,6 +39,19 @@ func TestCheckBlocksTheSameCommandsWithTheSameMessages(t *testing.T) {
 			t.Errorf("%q: %d %q", c, code, msg)
 		}
 	}
+	blockGit := []string{
+		"git push",
+		"git push origin main",
+		"git.exe push",
+		"git commit",
+		"git commit -m foo",
+		"git.exe commit -am bar",
+	}
+	for _, c := range blockGit {
+		if code, msg := Check(call(c)); code != 2 || msg != GitMessage {
+			t.Errorf("%q: %d %q", c, code, msg)
+		}
+	}
 	allow := []string{
 		"ls", "git status", "go test ./...", "cat agent_docs/plans/x.md",
 		"scripts/work_dot_bat/plan-status.sh set x Done", // its own folder name must not trip it
@@ -127,7 +140,7 @@ func TestMergeIsIdempotentAndKeepsEverythingElseInPlace(t *testing.T) {
 	if strings.Count(m.JSON, `"Bash(git push*)"`) != 1 {
 		t.Error("an existing deny rule must not be duplicated")
 	}
-	if strings.Count(m.JSON, HookCommand) != 1 {
+	if strings.Count(m.JSON, string(marshalPlain(HookCommand))) != 1 {
 		t.Error("hook added once")
 	}
 	again, _ := Merge([]byte(m.JSON))

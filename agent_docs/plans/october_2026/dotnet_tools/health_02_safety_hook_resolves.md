@@ -1,5 +1,5 @@
 ---
-status: In Progress
+status: Done
 ---
 
 # Make the Claude safety hook actually run

@@ -5,195 +5,198 @@ This is a practical map of the repository. Summaries are intentionally brief.
 <!-- BEGIN GENERATED FILE LISTING - do not edit by hand; run scripts/work_dot_bat/update-project-structure.sh -->
 
 - `.tools\`
-  - `auto_daemon` - <!-- TODO: summarize -->
-  - `auto_daemon.bat` - <!-- TODO: summarize -->
-  - `auto_status` - <!-- TODO: summarize -->
-  - `auto_status.bat` - <!-- TODO: summarize -->
-  - `build-local.sh` - <!-- TODO: summarize -->
-  - `build-release.sh` - <!-- TODO: summarize -->
-  - `check-audit.sh` - <!-- TODO: summarize -->
-  - `check-duplication.sh` - <!-- TODO: summarize -->
-  - `check-monolith.sh` - <!-- TODO: summarize -->
-  - `check-skills.sh` - <!-- TODO: summarize -->
-  - `check-source-assertions.sh` - <!-- TODO: summarize -->
-  - `check-structural-duplication.sh` - <!-- TODO: summarize -->
-  - `create_worktree` - <!-- TODO: summarize -->
-  - `create_worktree.bat` - <!-- TODO: summarize -->
-  - `list-tasks.sh` - <!-- TODO: summarize -->
-  - `plan-status.sh` - <!-- TODO: summarize -->
-  - `prepare_for_push` - <!-- TODO: summarize -->
-  - `prepare_for_push.bat` - <!-- TODO: summarize -->
-  - `run-checks.sh` - <!-- TODO: summarize -->
-  - `smoke.sh` - <!-- TODO: summarize -->
+  - `auto_daemon` - POSIX launcher for the `auto_daemon` subcommand (via `work --run`)
+  - `auto_daemon.bat` - Windows launcher for the `auto_daemon` subcommand
+  - `auto_status` - POSIX launcher for the `auto_status` subcommand
+  - `auto_status.bat` - Windows launcher for the `auto_status` subcommand
+  - `build-local.sh` - builds only the Windows amd64 binary for quick local testing
+  - `build-release.sh` - cross-compiles all six OS/arch release binaries into `dist/`
+  - `check-audit.sh` - managed wrapper: fail on high/critical `npm audit` findings
+  - `check-duplication.sh` - managed wrapper: duplicated-block ratchet gate
+  - `check-monolith.sh` - managed wrapper: oversized-file (monolith) ratchet gate
+  - `check-skills.sh` - managed wrapper: validates skill paths, names and cross-tree routing
+  - `check-source-assertions.sh` - managed wrapper: flags source-text assertions in tests (TypeScript projects)
+  - `check-structural-duplication.sh` - managed wrapper: structural-duplication ratchet gate (TypeScript projects)
+  - `create_worktree` - POSIX launcher for the `create_worktree` subcommand
+  - `create_worktree.bat` - Windows launcher for the `create_worktree` subcommand
+  - `list-tasks.sh` - managed wrapper: prints open plans indexed by number
+  - `plan-status.sh` - managed wrapper: the only sanctioned way to change a plan's status frontmatter
+  - `prepare_for_push` - POSIX launcher for the push-preparation subcommand
+  - `prepare_for_push.bat` - Windows launcher for the push-preparation subcommand
+  - `run-checks.sh` - managed wrapper: the mechanical gate run by the pre-push hook and CI
+  - `smoke.sh` - smoke-tests a built binary in a scratch git repo
   - `typescript\`
-    - `check-source-assertions.mjs` - <!-- TODO: summarize -->
-    - `check-structural-duplication.mjs` - <!-- TODO: summarize -->
-    - `duplication-common.mjs` - <!-- TODO: summarize -->
-    - `report-structural-duplication.mjs` - <!-- TODO: summarize -->
-  - `update-project-structure.sh` - <!-- TODO: summarize -->
-  - `work` - <!-- TODO: summarize -->
-  - `work.bat` - <!-- TODO: summarize -->
-  - `worktree-info.sh` - <!-- TODO: summarize -->
-  - `add-to-path.bat` - <!-- TODO: summarize -->
-  - `add-to-path.ps1` - <!-- TODO: summarize -->
-  - `add-to-path.sh` - <!-- TODO: summarize -->
-  - `build-local.bat` - <!-- TODO: summarize -->
+    - `check-source-assertions.mjs` - Node implementation of the source-text-assertion test gate
+    - `check-structural-duplication.mjs` - Node implementation of the structural-duplication ratchet
+    - `duplication-common.mjs` - shared helpers for the duplication scripts
+    - `report-structural-duplication.mjs` - reports logic/algorithmic duplication detail
+  - `update-project-structure.sh` - managed wrapper: regenerates this file's listing, preserving summaries
+  - `work` - POSIX launcher: runs the binary, `--run <subcommand>` for other tools
+  - `work.bat` - Windows launcher equivalent of `work`
+  - `worktree-info.sh` - managed wrapper: prints current vs. main worktree path/branch
+  - `add-to-path.bat` - adds `.tools` to the user's PATH (Windows cmd)
+  - `add-to-path.ps1` - adds `.tools` to the user's PATH (PowerShell)
+  - `add-to-path.sh` - adds `.tools` to PATH in the shell profile
+  - `build-local.bat` - Windows equivalent of `build-local.sh`
+  - `work_dot_bat` - legacy alias forwarding to `work --run`
+  - `work_dot_bat.bat` - legacy Windows alias forwarding to `work.bat --run`
 - `src\`
   - `cmd\`
     - `work_dot_bat\`
-      - `auto.go` - <!-- TODO: summarize -->
-      - `checks.go` - <!-- TODO: summarize -->
-      - `main.go` - <!-- TODO: summarize -->
-      - `main_test.go` - <!-- TODO: summarize -->
-      - `maint.go` - <!-- TODO: summarize -->
-      - `sessions.go` - <!-- TODO: summarize -->
-      - `test.go` - <!-- TODO: summarize -->
-      - `work.go` - <!-- TODO: summarize -->
+      - `auto.go` - registers the `auto_daemon`/`auto_status` tools and daemon config
+      - `checks.go` - wires the check commands' env, project root and automated tests
+      - `main.go` - launcher entry point: parses `<tool> [project=] args` and dispatches
+      - `main_test.go` - tests for launcher argument parsing and dispatch
+      - `maint.go` - registers the maintenance commands (sync, bootstrap, migrate, hook)
+      - `sessions.go` - registers the session-ledger tools
+      - `test.go` - the `test` tool runner
+      - `work.go` - the `work` and push-preparation tools
   - `internal\`
     - `agentcmd\`
-      - `agentcmd.go` - <!-- TODO: summarize -->
-      - `agentcmd_test.go` - <!-- TODO: summarize -->
-      - `definition.go` - <!-- TODO: summarize -->
+      - `agentcmd.go` - resolves agent definitions and builds agent command lines and prompts
+      - `agentcmd_test.go` - tests for agent command and prompt building
+      - `definition.go` - built-in agent definitions and the `agent_cli.json` overlay
     - `agentsession\`
-      - `agentsession_test.go` - <!-- TODO: summarize -->
-      - `analysis.go` - <!-- TODO: summarize -->
-      - `classify.go` - <!-- TODO: summarize -->
-      - `rows.go` - <!-- TODO: summarize -->
-      - `session.go` - <!-- TODO: summarize -->
+      - `agentsession_test.go` - tests for session naming, ledger rows and exit classification
+      - `analysis.go` - parses agent logs and formats durations for session analysis
+      - `classify.go` - classifies how a run ended and parses rate-limit reset times
+      - `rows.go` - order-preserving ledger row type
+      - `session.go` - session naming/IDs and session-ledger records
     - `batch\`
-      - `batch.go` - <!-- TODO: summarize -->
-      - `batch_test.go` - <!-- TODO: summarize -->
-      - `loop.go` - <!-- TODO: summarize -->
+      - `batch.go` - shared run-agent/test/retry loop, rate-limit pauses and run summary
+      - `batch_test.go` - tests for the batch retry loop and summary
+      - `loop.go` - loop mode: picks eligible subtasks and runs until the plan is done
     - `bootstrap\`
-      - `bootstrap.go` - <!-- TODO: summarize -->
-      - `bootstrap_test.go` - <!-- TODO: summarize -->
+      - `bootstrap.go` - prepares a repo for work_dot_bat (docs, skills, hook, scripts, baselines)
+      - `bootstrap_test.go` - tests for bootstrap and project registration
     - `checks\`
-      - `audit.go` - <!-- TODO: summarize -->
-      - `checks_test.go` - <!-- TODO: summarize -->
-      - `duplication.go` - <!-- TODO: summarize -->
-      - `git.go` - <!-- TODO: summarize -->
-      - `monolith.go` - <!-- TODO: summarize -->
-      - `runchecks.go` - <!-- TODO: summarize -->
-      - `skills.go` - <!-- TODO: summarize -->
-      - `structure.go` - <!-- TODO: summarize -->
-      - `structure_test.go` - <!-- TODO: summarize -->
-      - `immediate_test.go` - <!-- TODO: summarize -->
+      - `audit.go` - `npm audit` high/critical gate
+      - `checks_test.go` - tests for monolith/duplication scanning helpers
+      - `duplication.go` - duplicated-block ratchet gate
+      - `git.go` - git runner and repo-root helpers for the checks
+      - `monolith.go` - oversized-file ratchet gate and baseline
+      - `runchecks.go` - `run-checks` orchestration: config, commands, gate and structure doc sync
+      - `skills.go` - skill tree validation (frontmatter, paths, name matching)
+      - `structure.go` - project-structure doc regenerator preserving summaries
+      - `structure_test.go` - tests for structure doc parsing and reconciliation
+      - `immediate_test.go` - tests for recording/clearing failed automations in the immediate plan
+      - `scanconfig.go` - per-project scan roots and extension filters for the checks
     - `daemon\`
-      - `agent.go` - <!-- TODO: summarize -->
-      - `cli.go` - <!-- TODO: summarize -->
-      - `daemon_test.go` - <!-- TODO: summarize -->
-      - `gitstate.go` - <!-- TODO: summarize -->
-      - `loop.go` - <!-- TODO: summarize -->
-      - `plans.go` - <!-- TODO: summarize -->
-      - `run.go` - <!-- TODO: summarize -->
-      - `run_test.go` - <!-- TODO: summarize -->
+      - `agent.go` - parses daemon-mode agent outcomes and builds the daemon prompt
+      - `cli.go` - daemon entry points (`auto_daemon`, `auto_status`)
+      - `daemon_test.go` - tests for plan eligibility and ordering
+      - `gitstate.go` - git status/worktree parsing helpers for the daemon
+      - `loop.go` - the daemon's unattended main loop
+      - `plans.go` - pure planner: which `auto: true` plans run and in what order
+      - `run.go` - runs one plan in its own worktree with retries
+      - `run_test.go` - tests for the daemon runner against real git repos
     - `maintcli\`
-      - `maintcli.go` - <!-- TODO: summarize -->
-      - `maintcli_test.go` - <!-- TODO: summarize -->
+      - `maintcli.go` - CLI for repo maintenance: sync, bootstrap, migrate, rewrite, hook, vendor manifest
+      - `maintcli_test.go` - tests for the maintenance commands and vendor manifest contract
     - `managed\`
-      - `managed.go` - <!-- TODO: summarize -->
-      - `managed_test.go` - <!-- TODO: summarize -->
-      - `manifest.go` - <!-- TODO: summarize -->
+      - `managed.go` - managed-file header: render, parse, hash and versioning
+      - `managed_test.go` - tests for managed headers and versions
+      - `manifest.go` - vendor manifest read/write and drift detection
     - `menu\`
-      - `menu.go` - <!-- TODO: summarize -->
-      - `menu_test.go` - <!-- TODO: summarize -->
+      - `menu.go` - project-selection menu and path-registration flow
+      - `menu_test.go` - tests for the project menu
     - `pathrewrite\`
-      - `pathrewrite.go` - <!-- TODO: summarize -->
-      - `pathrewrite_test.go` - <!-- TODO: summarize -->
+      - `pathrewrite.go` - one-shot rewrite of old script paths to the managed folder
+      - `pathrewrite_test.go` - tests for path rewriting
     - `planstatus\`
-      - `check.go` - <!-- TODO: summarize -->
-      - `cli.go` - <!-- TODO: summarize -->
-      - `commands.go` - <!-- TODO: summarize -->
-      - `frontmatter.go` - <!-- TODO: summarize -->
-      - `planstatus_test.go` - <!-- TODO: summarize -->
-      - `scan.go` - <!-- TODO: summarize -->
-      - `tasks.go` - <!-- TODO: summarize -->
-      - `tasks_test.go` - <!-- TODO: summarize -->
-      - `worktrees.go` - <!-- TODO: summarize -->
-      - `worktrees_test.go` - <!-- TODO: summarize -->
+      - `check.go` - effective plan status with worktree overlay and frontmatter classification
+      - `cli.go` - the `plan-status` CLI dispatcher
+      - `commands.go` - plan-status mutations (`add`, `set`) and status validation
+      - `frontmatter.go` - reads and writes plan frontmatter
+      - `planstatus_test.go` - tests for plan-status commands
+      - `scan.go` - walks plan files and reads their status; generates the shim
+      - `tasks.go` - open-task listing and rendering
+      - `tasks_test.go` - tests for task listing
+      - `worktrees.go` - worktree/branch naming and per-worktree plan status collection
+      - `worktrees_test.go` - tests for worktree parsing and status collection
     - `proc\`
-      - `proc.go` - <!-- TODO: summarize -->
-      - `proc_unix.go` - <!-- TODO: summarize -->
-      - `proc_windows.go` - <!-- TODO: summarize -->
+      - `proc.go` - child-process runner: timeout, heartbeat, process-tree kill
+      - `proc_unix.go` - Unix process-group setup and tree kill
+      - `proc_windows.go` - Windows process setup and tree kill
     - `projectconfig\`
-      - `projectconfig.go` - <!-- TODO: summarize -->
-      - `projectconfig_test.go` - <!-- TODO: summarize -->
+      - `projectconfig.go` - loads per-repo commands from the project config
+      - `projectconfig_test.go` - tests for project config loading and command parsing
     - `projects\`
-      - `projects.go` - <!-- TODO: summarize -->
-      - `projects_test.go` - <!-- TODO: summarize -->
+      - `projects.go` - project registry (name + machine-specific path)
+      - `projects_test.go` - tests for the project registry
     - `repo\`
-      - `repo.go` - <!-- TODO: summarize -->
-      - `repo_test.go` - <!-- TODO: summarize -->
+      - `repo.go` - repo-root detection, state paths and project activation
+      - `repo_test.go` - tests for repo-root and state-path helpers
     - `safetyhook\`
-      - `safetyhook.go` - <!-- TODO: summarize -->
-      - `safetyhook_test.go` - <!-- TODO: summarize -->
+      - `safetyhook.go` - Claude Code safety hook blocking agent commits/pushes/launchers
+      - `safetyhook_test.go` - tests for the safety hook and settings merge
     - `sessiontools\`
-      - `sessiontools.go` - <!-- TODO: summarize -->
-      - `sessiontools_test.go` - <!-- TODO: summarize -->
+      - `sessiontools.go` - `analyze_session` and `reclassify_sessions` tools
+      - `sessiontools_test.go` - tests for session analysis tools
     - `statemigrate\`
-      - `statemigrate.go` - <!-- TODO: summarize -->
-      - `statemigrate_test.go` - <!-- TODO: summarize -->
+      - `statemigrate.go` - one-time move of runtime state into `.work_dot_bat/`
+      - `statemigrate_test.go` - tests for state migration
     - `syncer\`
-      - `syncer.go` - <!-- TODO: summarize -->
-      - `syncer_test.go` - <!-- TODO: summarize -->
+      - `syncer.go` - keeps vendored file copies in a target repo current
+      - `syncer_test.go` - tests for sync classification and apply
     - `taskmenu\`
-      - `list.go` - <!-- TODO: summarize -->
-      - `menu.go` - <!-- TODO: summarize -->
-      - `paths.go` - <!-- TODO: summarize -->
-      - `taskmenu_test.go` - <!-- TODO: summarize -->
+      - `list.go` - task picker listing, ordering and formatting
+      - `menu.go` - interactive task picker (Step 1) and its prompt loop
+      - `paths.go` - resolves user-typed plan paths to agent_docs-relative paths
+      - `taskmenu_test.go` - tests for the task picker
     - `testrunner\`
-      - `testrunner.go` - <!-- TODO: summarize -->
-      - `testrunner_test.go` - <!-- TODO: summarize -->
+      - `testrunner.go` - runs tiered test layers via a pluggable command runner
+      - `testrunner_test.go` - tests for test-layer dispatch and failure handling
     - `tools\`
-      - `tools.go` - <!-- TODO: summarize -->
+      - `tools.go` - registry of launcher tools
     - `work\`
-      - `app.go` - <!-- TODO: summarize -->
-      - `app_test.go` - <!-- TODO: summarize -->
-      - `autoflag.go` - <!-- TODO: summarize -->
-      - `breakdown.go` - <!-- TODO: summarize -->
-      - `launch.go` - <!-- TODO: summarize -->
-      - `menuopts.go` - <!-- TODO: summarize -->
-      - `mergeback.go` - <!-- TODO: summarize -->
-      - `mergeback_test.go` - <!-- TODO: summarize -->
-      - `new.go` - <!-- TODO: summarize -->
-      - `pure_test.go` - <!-- TODO: summarize -->
-      - `push.go` - <!-- TODO: summarize -->
-      - `push_test.go` - <!-- TODO: summarize -->
-      - `immediate_test.go` - <!-- TODO: summarize -->
+      - `app.go` - the interactive launcher `App` and its seams
+      - `app_test.go` - tests for the launcher flows
+      - `autoflag.go` - human-only action that sets `auto: true` on a plan
+      - `breakdown.go` - detects whether a plan needs breakdown; status-only path checks
+      - `launch.go` - launches interactive and non-interactive agent sessions
+      - `menuopts.go` - Step 2 action-menu options for a chosen plan
+      - `mergeback.go` - merge-back-into-main workflow
+      - `mergeback_test.go` - tests for the merge-back workflow
+      - `new.go` - wires an `App` to real stdin/stdout, git and agents
+      - `pure_test.go` - tests for pure launcher helpers
+      - `push.go` - push-preparation workflow (gate, agent, push)
+      - `push_test.go` - tests for the push workflow
+      - `immediate_test.go` - tests for the launcher's handling of the immediate plan
     - `worktree\`
-      - `cli.go` - <!-- TODO: summarize -->
-      - `detach_unix.go` - <!-- TODO: summarize -->
-      - `detach_windows.go` - <!-- TODO: summarize -->
-      - `info.go` - <!-- TODO: summarize -->
-      - `merge.go` - <!-- TODO: summarize -->
-      - `merge_test.go` - <!-- TODO: summarize -->
-      - `provision.go` - <!-- TODO: summarize -->
-      - `worktree.go` - <!-- TODO: summarize -->
-      - `worktree_test.go` - <!-- TODO: summarize -->
+      - `cli.go` - the `create_worktree` tool
+      - `detach_unix.go` - Unix detached-process helper
+      - `detach_windows.go` - Windows detached-process helper
+      - `info.go` - reports current vs. main worktree
+      - `merge.go` - merge-back availability gate and commit-list parsing
+      - `merge_test.go` - tests for merge gating and staging
+      - `provision.go` - worktree provisioning: install, copies, dev server
+      - `worktree.go` - creates git worktrees for plans and locates branches
+      - `worktree_test.go` - tests for worktree creation
     - `wrappers\`
-      - `wrappers.go` - <!-- TODO: summarize -->
-      - `wrappers_test.go` - <!-- TODO: summarize -->
+      - `wrappers.go` - writes `.tools/<tool>` launchers into a project repo
+      - `wrappers_test.go` - tests for wrapper installation
     - `immediate\`
-      - `immediate.go` - <!-- TODO: summarize -->
-      - `immediate_test.go` - <!-- TODO: summarize -->
+      - `immediate.go` - the one-slot `immediate` plan inbox for failed automations
+      - `immediate_test.go` - tests for the immediate plan
   - `vendor\`
-    - `manifest.json` - <!-- TODO: summarize -->
+    - `manifest.json` - catalogue of vendored files with version, date and sha256
     - `scripts\`
       - `work_dot_bat\`
-        - `check-audit.sh` - <!-- TODO: summarize -->
-        - `check-duplication.sh` - <!-- TODO: summarize -->
-        - `check-monolith.sh` - <!-- TODO: summarize -->
-        - `check-skills.sh` - <!-- TODO: summarize -->
-        - `check-source-assertions.sh` - <!-- TODO: summarize -->
-        - `check-structural-duplication.sh` - <!-- TODO: summarize -->
-        - `list-tasks.sh` - <!-- TODO: summarize -->
-        - `plan-status.sh` - <!-- TODO: summarize -->
-        - `run-checks.sh` - <!-- TODO: summarize -->
+        - `check-audit.sh` - embedded vendor copy of `.tools/check-audit.sh` shipped to target repos
+        - `check-duplication.sh` - embedded vendor copy of `.tools/check-duplication.sh` shipped to target repos
+        - `check-monolith.sh` - embedded vendor copy of `.tools/check-monolith.sh` shipped to target repos
+        - `check-skills.sh` - embedded vendor copy of `.tools/check-skills.sh` shipped to target repos
+        - `check-source-assertions.sh` - embedded vendor copy of `.tools/check-source-assertions.sh` shipped to target repos
+        - `check-structural-duplication.sh` - embedded vendor copy of `.tools/check-structural-duplication.sh` shipped to target repos
+        - `list-tasks.sh` - embedded vendor copy of `.tools/list-tasks.sh` shipped to target repos
+        - `plan-status.sh` - embedded vendor copy of `.tools/plan-status.sh` shipped to target repos
+        - `run-checks.sh` - embedded vendor copy of `.tools/run-checks.sh` shipped to target repos
         - `typescript\`
-          - `check-source-assertions.mjs` - <!-- TODO: summarize -->
-          - `check-structural-duplication.mjs` - <!-- TODO: summarize -->
-          - `duplication-common.mjs` - <!-- TODO: summarize -->
-          - `report-structural-duplication.mjs` - <!-- TODO: summarize -->
-        - `update-project-structure.sh` - <!-- TODO: summarize -->
-        - `worktree-info.sh` - <!-- TODO: summarize -->
+          - `check-source-assertions.mjs` - embedded vendor copy of `.tools/typescript/check-source-assertions.mjs` shipped to target repos
+          - `check-structural-duplication.mjs` - embedded vendor copy of `.tools/typescript/check-structural-duplication.mjs` shipped to target repos
+          - `duplication-common.mjs` - embedded vendor copy of `.tools/typescript/duplication-common.mjs` shipped to target repos
+          - `report-structural-duplication.mjs` - embedded vendor copy of `.tools/typescript/report-structural-duplication.mjs` shipped to target repos
+        - `update-project-structure.sh` - embedded vendor copy of `.tools/update-project-structure.sh` shipped to target repos
+        - `worktree-info.sh` - embedded vendor copy of `.tools/worktree-info.sh` shipped to target repos
 <!-- END GENERATED FILE LISTING -->

@@ -204,7 +204,7 @@ func runIteration(r LoopRun, target planstatus.Entry, planPath string, isParentR
 	current := statusNow()
 	if current != "Ready for Review" {
 		logf(fmt.Sprintf("\nTask \"%s\" is in status \"%s\" (not \"Ready for Review\"). Retrying with retry prompt (1 retry permitted)...", planPath, current))
-		if a := r.RunAgent(agentcmd.BuildRetryPrompt(planPath, current, true), planPath, 2); a.RateLimited {
+		if a := r.RunAgent(agentcmd.BuildRetryPrompt(planPath, current), planPath, 2); a.RateLimited {
 			return ratelimited(target), true
 		}
 		if current = statusNow(); current != "Ready for Review" {

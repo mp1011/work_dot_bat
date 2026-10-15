@@ -58,8 +58,8 @@ func TestParseLogContent(t *testing.T) {
 	if b := agentsession.ParseLogContent(""); b.StepZeroBlocked || b.Escalated || len(b.FilesRead) != 0 {
 		t.Errorf("%+v", b)
 	}
-	if c := agentsession.ParseLogContent("a claim held by another process here"); !c.StepZeroBlocked {
-		t.Error("claim-held text should flag step zero")
+	if c := agentsession.ParseLogContent("outcome was BLOCKED here"); !c.StepZeroBlocked {
+		t.Error("BLOCKED text should flag step zero")
 	}
 }
 

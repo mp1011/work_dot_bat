@@ -15,7 +15,7 @@
           {
             "type": "command",
             "shell": "bash",
-            "command": "node -e \"let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const j=JSON.parse(d);const cmd=(j.tool_input&&j.tool_input.command)||'';if(/prepare_for_push\\.(js|bat)\\b/i.test(cmd)||/launch\\.mjs[\\\"']?\\s+prepare_for_push\\b/i.test(cmd)){console.error('Blocked: the prepare-for-push script performs a real git push and must be run by the human directly from their own terminal, not invoked by Claude.');process.exit(2);}if(/\\bwork\\.(js|bat)\\b/i.test(cmd)||/launch\\.mjs[\\\"']?\\s+work\\b/i.test(cmd)){console.error('Blocked: work is an interactive human tool that can commit, push, and set auto: true on a plan; it must be run by the human directly from their own terminal, not invoked by Claude.');process.exit(2);}process.exit(0);}catch(e){process.exit(0);}});\""
+            "command": "bin=\"${WORK_DOT_BAT_BIN:-work_dot_bat}\"; if ! command -v \"$bin\" >/dev/null 2>&1; then echo \"work_dot_bat binary not found: put it on PATH or set WORK_DOT_BAT_BIN.\" >&2; exit 2; fi; exec \"$bin\" safety-hook"
           }
         ]
       }

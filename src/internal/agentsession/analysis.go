@@ -38,7 +38,6 @@ var (
 	cmdRE  = regexp.MustCompile(`(?i)(?:run_command.*?CommandLine[:\s]+|Running command:\s+)(?:"([^\r\n]+?)"|'([^\r\n]+?)'|([^\r\n]+?))$`)
 
 	blockedRE    = regexp.MustCompile(`(?i)BLOCKED`)
-	claimHeldRE  = regexp.MustCompile(`(?i)claim held by another process`)
 	escalationRE = regexp.MustCompile(`(?i)testability_escalation`)
 	needsInputRE = regexp.MustCompile(`(?i)Blocked\s*—\s*Needs User Input`)
 	lineSplitRE  = regexp.MustCompile(`\r?\n`)
@@ -77,7 +76,7 @@ func ParseLogContent(content string) Analysis {
 			}
 		}
 	}
-	a.StepZeroBlocked = blockedRE.MatchString(content) || claimHeldRE.MatchString(content)
+	a.StepZeroBlocked = blockedRE.MatchString(content)
 	a.Escalated = escalationRE.MatchString(content) || needsInputRE.MatchString(content)
 	return a
 }

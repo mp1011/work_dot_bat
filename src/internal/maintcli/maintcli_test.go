@@ -417,6 +417,9 @@ func TestSafetyHookCommand(t *testing.T) {
 	if code := call("node src/prepare_for_push.js"); code != 2 || strings.TrimSpace(errOut.String()) != safetyhook.PushMessage {
 		t.Errorf("%d %q", code, errOut.String())
 	}
+	if code := call("git push"); code != 2 || strings.TrimSpace(errOut.String()) != safetyhook.GitMessage {
+		t.Errorf("%d %q", code, errOut.String())
+	}
 	if code := maintcli.SafetyHook(strings.NewReader("garbage"), &errOut); code != 0 {
 		t.Errorf("garbage input must be allowed, got %d", code)
 	}
