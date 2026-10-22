@@ -23,20 +23,28 @@ func TestBuildCommandDefaults(t *testing.T) {
 		o     CommandOptions
 		want  Command
 	}{
-		{"claude interactive", "c", CommandOptions{RepoRoot: root, Prompt: "P", Interactive: true},
+		{"claude interactive", "5", CommandOptions{RepoRoot: root, Prompt: "P", Interactive: true},
 			Command{"claude", []string{"--model", "sonnet", "--permission-mode", "auto", "P"}}},
-		{"claude print", "c", CommandOptions{RepoRoot: root, Prompt: "P"},
+		{"claude print", "5", CommandOptions{RepoRoot: root, Prompt: "P"},
 			Command{"claude", []string{"--model", "sonnet", "--permission-mode", "auto", "--print", "P"}}},
-		{"claude session id", "c", CommandOptions{RepoRoot: root, Prompt: "P", Interactive: true, SessionID: "S"},
+		{"claude session id", "5", CommandOptions{RepoRoot: root, Prompt: "P", Interactive: true, SessionID: "S"},
 			Command{"claude", []string{"--model", "sonnet", "--permission-mode", "auto", "--session-id", "S", "P"}}},
-		{"agy interactive log", "a", CommandOptions{RepoRoot: root, Prompt: "P", Interactive: true, LogFile: "L"},
+		{"agy interactive log", "1", CommandOptions{RepoRoot: root, Prompt: "P", Interactive: true, LogFile: "L"},
 			Command{"agy", []string{"--add-dir", root, "--model", "gemini-3.8-flash", "--effort", "medium", "--log-file", "L", "-i", "P"}}},
 		{"agy print", "agy", CommandOptions{RepoRoot: root, Prompt: "P"},
 			Command{"agy", []string{"--add-dir", root, "--model", "gemini-3.8-flash", "--effort", "medium", "--print", "P"}}},
-		{"claude ignores log file", "c", CommandOptions{RepoRoot: root, Prompt: "P", LogFile: "L"},
+		{"claude ignores log file", "5", CommandOptions{RepoRoot: root, Prompt: "P", LogFile: "L"},
 			Command{"claude", []string{"--model", "sonnet", "--permission-mode", "auto", "--print", "P"}}},
-		{"agy ignores session id", "a", CommandOptions{RepoRoot: root, Prompt: "P", SessionID: "S"},
+		{"agy ignores session id", "1", CommandOptions{RepoRoot: root, Prompt: "P", SessionID: "S"},
 			Command{"agy", []string{"--add-dir", root, "--model", "gemini-3.8-flash", "--effort", "medium", "--print", "P"}}},
+		{"agy gemini 4 argon", "2", CommandOptions{RepoRoot: root, Prompt: "P"},
+			Command{"agy", []string{"--add-dir", root, "--model", "gemini-4-argon", "--effort", "medium", "--print", "P"}}},
+		{"agy claude sonnet", "3", CommandOptions{RepoRoot: root, Prompt: "P"},
+			Command{"agy", []string{"--add-dir", root, "--model", "claude-sonnet-5-5", "--effort", "medium", "--print", "P"}}},
+		{"agy claude opus", "4", CommandOptions{RepoRoot: root, Prompt: "P"},
+			Command{"agy", []string{"--add-dir", root, "--model", "claude-opus-5-5", "--effort", "medium", "--print", "P"}}},
+		{"claude opus", "6", CommandOptions{RepoRoot: root, Prompt: "P"},
+			Command{"claude", []string{"--model", "opus", "--permission-mode", "auto", "--print", "P"}}},
 	}
 	for _, c := range cases {
 		if got := BuildCommand(c.agent, c.o, defaults()); !reflect.DeepEqual(got, c.want) {
@@ -46,12 +54,12 @@ func TestBuildCommandDefaults(t *testing.T) {
 }
 
 func TestBuildInvocationDefaultsAgyLogFromSessionName(t *testing.T) {
-	c := BuildInvocation("a", root, "P", InvocationOptions{SessionName: "sess"}, defaults())
+	c := BuildInvocation("1", root, "P", InvocationOptions{SessionName: "sess"}, defaults())
 	want := []string{"--add-dir", root, "--model", "gemini-3.8-flash", "--effort", "medium", "--log-file", ".work_dot_bat/logs/sess.log", "--print", "P"}
 	if !reflect.DeepEqual(c.Args, want) {
 		t.Errorf("got %v", c.Args)
 	}
-	c = BuildInvocation("a", root, "P", InvocationOptions{SessionName: "sess", LogFile: "X"}, defaults())
+	c = BuildInvocation("1", root, "P", InvocationOptions{SessionName: "sess", LogFile: "X"}, defaults())
 	if c.Args[7] != "X" {
 		t.Errorf("explicit log file should win: %v", c.Args)
 	}
@@ -121,23 +129,44 @@ func scripted(inputs ...string) (menu.IO, *[]string) {
 
 func TestChooseAgent(t *testing.T) {
 	io, out := scripted()
-	if a, quit, ok := ChooseAgent("c", io, nil); a != "c" || quit || !ok || len(*out) != 0 {
+	if a, quit, ok := ChooseAgent("5", io, nil); a != "5" || quit || !ok || len(*out) != 0 {
 		t.Errorf("already selected must not prompt: %v", *out)
 	}
-	for in, want := range map[string]string{"a": "a", "Antigravity": "a", "1": "a", "c": "c", "CLAUDE": "c", "2": "c"} {
+	for in, want := range map[string]string{
+		"1": "1", "Antigravity": "1", "agy": "1",
+		"2": "2", "argon": "2",
+		"3": "3", "agy-sonnet": "3",
+		"4": "4", "agy-opus": "4",
+		"5": "5", "CLAUDE": "5", "claude": "5",
+		"6": "6", "opus": "6",
+	} {
 		io, _ := scripted("zzz", in)
 		if a, quit, ok := ChooseAgent("", io, nil); a != want || quit || !ok {
-			t.Errorf("%q -> %q", in, a)
+			t.Errorf("%q -> %q (want %q)", in, a, want)
 		}
 	}
 	io, out = scripted("bad", "q")
 	if _, quit, ok := ChooseAgent("", io, nil); !quit || !ok {
 		t.Error("q should quit")
 	}
-	wantOut := []string{"\nSelect Agent:", "  (a) Google Antigravity (Gemini 3.8 Flash)", "  (c) Claude Code (Sonnet)", "  (o) Claude Code (Opus)", "",
-		"Choose agent (a/c/o): ", "Invalid agent selection. Please enter one of: a, c, o.", "Choose agent (a/c/o): ", "Exiting work script."}
+	wantOut := []string{
+		"\nSelect Agent:",
+		"  (1) Google Antigravity (Gemini 3.8 Flash)",
+		"  (2) Google Antigravity (Gemini 4 Argon)",
+		"  (3) Google Antigravity (Claude Sonnet)",
+		"  (4) Google Antigravity (Claude Opus)",
+		"  (5) Claude Code (Sonnet)",
+		"  (6) Claude Code (Opus)",
+		"  (7) OpenAI Codex (GPT-6.1 Sol)",
+		"  (8) OpenAI Codex (GPT-6 Astra)",
+		"",
+		"Choose agent (1/2/3/4/5/6/7/8): ",
+		"Invalid agent selection. Please enter one of: 1, 2, 3, 4, 5, 6, 7, 8.",
+		"Choose agent (1/2/3/4/5/6/7/8): ",
+		"Exiting work script.",
+	}
 	if !reflect.DeepEqual(*out, wantOut) {
-		t.Errorf("got %q", *out)
+		t.Errorf("got %q want %q", *out, wantOut)
 	}
 	io, _ = scripted()
 	if _, _, ok := ChooseAgent("", io, nil); ok {
@@ -152,22 +181,22 @@ func TestLoadDefinitions(t *testing.T) {
 	}
 	os.WriteFile(filepath.Join(dir, CLIFile), []byte(`{"agents":[
 	  {"id":"claude-sonnet","label":"Sonnet!","args":["--model","sonnet-x"]},
-	  {"id":"gem","key":"g","label":"Gem","cmd":"gem","args":["-m","x"],"printArgs":["-p","{prompt}"],
+	  {"id":"gem","key":"9","label":"Gem","cmd":"gem","args":["-m","x"],"printArgs":["-p","{prompt}"],
 	   "interactiveArgs":["{prompt}"],"session":{"reader":"agy","dir":"D"}},
 	  {"id":"nokey","cmd":"n","session":{"reader":"claude"}},
 	  {"cmd":"anon"}]}`), 0o644)
 	defs := LoadDefinitions(dir)
-	if len(defs) != 4 {
-		t.Fatalf("want 3 built-ins + gem, got %d: %+v", len(defs), defs)
+	if len(defs) != 9 {
+		t.Fatalf("want 8 built-ins + gem, got %d: %+v", len(defs), defs)
 	}
 	s := Settings{Defs: defs}
-	if s.AgentLabel("c") != "Sonnet!" || s.Agent("claude").PrintArgs[0] != "--print" {
-		t.Errorf("override should keep unspecified fields: %+v", s.Agent("c"))
+	if s.AgentLabel("5") != "Sonnet!" || s.Agent("claude").PrintArgs[0] != "--print" {
+		t.Errorf("override should keep unspecified fields: %+v", s.Agent("5"))
 	}
-	if got := BuildCommand("c", CommandOptions{Prompt: "P"}, s); got.Args[1] != "sonnet-x" {
+	if got := BuildCommand("5", CommandOptions{Prompt: "P"}, s); got.Args[1] != "sonnet-x" {
 		t.Errorf("override args: %+v", got)
 	}
-	got := BuildCommand("g", CommandOptions{RepoRoot: root, Prompt: "P"}, s)
+	got := BuildCommand("9", CommandOptions{RepoRoot: root, Prompt: "P"}, s)
 	if want := (Command{"gem", []string{"-m", "x", "-p", "P"}}); !reflect.DeepEqual(got, want) {
 		t.Errorf("custom agent: got %+v want %+v", got, want)
 	}
@@ -185,13 +214,31 @@ func TestLoadDefinitions(t *testing.T) {
 
 func TestModelsAreSeparateAgents(t *testing.T) {
 	s := DefaultSettings()
-	for agent, model := range map[string]string{"c": "sonnet", "claude": "sonnet", "o": "opus", "claude-opus": "opus"} {
-		if got := BuildCommand(agent, CommandOptions{Prompt: "P"}, s); got.Args[1] != model {
-			t.Errorf("%s: got %+v want model %s", agent, got, model)
+	for agent, model := range map[string]string{
+		"5": "sonnet", "claude": "sonnet", "claude-sonnet": "sonnet",
+		"6": "opus", "claude-opus": "opus",
+		"1": "gemini-3.8-flash", "agy": "gemini-3.8-flash",
+		"2": "gemini-4-argon", "argon": "gemini-4-argon",
+		"3": "claude-sonnet-5-5", "agy-sonnet": "claude-sonnet-5-5",
+		"4": "claude-opus-5-5", "agy-opus": "claude-opus-5-5",
+	} {
+		cmd := BuildCommand(agent, CommandOptions{Prompt: "P"}, s)
+		found := false
+		for i, arg := range cmd.Args {
+			if arg == "--model" && i+1 < len(cmd.Args) && cmd.Args[i+1] == model {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("%s: got args %+v want model %s", agent, cmd.Args, model)
 		}
 	}
-	if s.Agent("o").ID != "claude-opus" || s.Agent("c").ID != "claude-sonnet" {
+	if s.Agent("6").ID != "claude-opus" || s.Agent("5").ID != "claude-sonnet" {
 		t.Error("sonnet and opus must be distinct agents")
+	}
+	if s.Agent("3").ID != "agy-claude-sonnet" || s.Agent("5").ID != "claude-sonnet" {
+		t.Error("agy claude-sonnet and claude-sonnet must be distinct agents")
 	}
 }
 
@@ -199,25 +246,25 @@ func TestProjectSettingsAgentCLIFile(t *testing.T) {
 	proj := t.TempDir()
 	os.WriteFile(filepath.Join(proj, CLIFile), []byte(`{"agents":[
 	  {"id":"claude-opus","cmd":"claude2"},
-	  {"id":"gem","key":"g","cmd":"gem","printArgs":["{prompt}"],"session":{"reader":"agy"}}]}`), 0o644)
+	  {"id":"gem","key":"9","cmd":"gem","printArgs":["{prompt}"],"session":{"reader":"agy"}}]}`), 0o644)
 	s := ProjectSettings(proj, proj)
-	got := BuildCommand("o", CommandOptions{Prompt: "P"}, s)
+	got := BuildCommand("6", CommandOptions{Prompt: "P"}, s)
 	if want := (Command{"claude2", []string{"--model", "opus", "--permission-mode", "auto", "--print", "P"}}); !reflect.DeepEqual(got, want) {
 		t.Errorf("got %+v want %+v", got, want)
 	}
-	if got := BuildCommand("g", CommandOptions{Prompt: "P"}, s); got.Cmd != "gem" {
+	if got := BuildCommand("9", CommandOptions{Prompt: "P"}, s); got.Cmd != "gem" {
 		t.Errorf("got %+v", got)
 	}
 }
 
 func TestChooseAgentCustom(t *testing.T) {
-	defs := append(DefaultDefinitions(), Definition{ID: "gem", Key: "g", Label: "Gem"})
-	io, _ := scripted("g")
-	if a, _, ok := ChooseAgent("", io, defs); a != "g" || !ok {
+	defs := append(DefaultDefinitions(), Definition{ID: "gem", Key: "9", Label: "Gem"})
+	io, _ := scripted("9")
+	if a, _, ok := ChooseAgent("", io, defs); a != "9" || !ok {
 		t.Errorf("got %q", a)
 	}
-	io, _ = scripted("4")
-	if a, _, _ := ChooseAgent("", io, defs); a != "g" {
+	io, _ = scripted("9")
+	if a, _, _ := ChooseAgent("", io, defs); a != "9" {
 		t.Errorf("position: got %q", a)
 	}
 }
@@ -227,5 +274,37 @@ func TestRepoAgentCLIFileMatchesBuiltIns(t *testing.T) {
 	want, _ := json.Marshal(DefaultDefinitions())
 	if string(got) != string(want) {
 		t.Errorf("repo agent_cli.json drifted from the built-ins:\n got %s\nwant %s", got, want)
+	}
+}
+
+func TestCodexCommands(t *testing.T) {
+	s := DefaultSettings()
+	for _, name := range []string{"8", "codex-astra", "astra", "gpt-6-astra"} {
+		for _, interactive := range []bool{false, true} {
+			got := BuildCommand(name, CommandOptions{Prompt: "P", Interactive: interactive}, s)
+			args := []string{"--model", "gpt-6-astra", "--approve-for-me"}
+			if !interactive {
+				args = append(args, "exec")
+			}
+			want := Command{"codex", append(args, "P")}
+			if !reflect.DeepEqual(got, want) {
+				t.Errorf("%s interactive=%v: got %+v want %+v", name, interactive, got, want)
+			}
+		}
+	}
+	for _, name := range []string{"7", "codex", "openai"} {
+		got := BuildCommand(name, CommandOptions{Prompt: "P", LogFile: "L", SessionID: "unused"}, s)
+		want := Command{"codex", []string{"--model", "gpt-6.1-sol", "--approve-for-me", "exec", "P", "--output-last-message", "L"}}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("%s: got %+v want %+v", name, got, want)
+		}
+	}
+	got := BuildCommand("codex", CommandOptions{Prompt: "P", Interactive: true, LogFile: "L"}, s)
+	if want := (Command{"codex", []string{"--model", "gpt-6.1-sol", "--approve-for-me", "P"}}); !reflect.DeepEqual(got, want) {
+		t.Errorf("interactive: got %+v want %+v", got, want)
+	}
+	got = BuildCommand("codex", CommandOptions{Prompt: "P"}, s)
+	if want := (Command{"codex", []string{"--model", "gpt-6.1-sol", "--approve-for-me", "exec", "P"}}); !reflect.DeepEqual(got, want) {
+		t.Errorf("no log: got %+v want %+v", got, want)
 	}
 }

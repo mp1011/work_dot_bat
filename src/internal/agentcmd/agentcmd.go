@@ -56,6 +56,9 @@ func BuildCommand(agent string, o CommandOptions, s Settings) Command {
 		args = append(args, expand(d.InteractiveArgs, vars)...)
 	} else {
 		args = append(args, expand(d.PrintArgs, vars)...)
+		if o.LogFile != "" {
+			args = append(args, expand(d.PrintLogFileArgs, vars)...)
+		}
 	}
 	return Command{d.Cmd, args}
 }

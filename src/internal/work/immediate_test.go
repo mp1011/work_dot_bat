@@ -18,7 +18,7 @@ func recordFailure(t *testing.T, root string) {
 
 // With a pending immediate plan the menu is skipped, the notice is shown and the agent works it.
 func TestPendingImmediatePlanSkipsTheMenu(t *testing.T) {
-	f := newFixture(t, "w", "", "c", "n", "s")
+	f := newFixture(t, "w", "", "5", "n", "s")
 	recordFailure(t, f.root)
 	picks := 0
 	f.app.Pick = func() taskmenu.Result { picks++; return taskmenu.Result{Quit: true} }

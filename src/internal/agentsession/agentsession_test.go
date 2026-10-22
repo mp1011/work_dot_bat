@@ -7,6 +7,19 @@ import (
 	"time"
 )
 
+func TestCodexFinalResponseClassification(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "final.log")
+	if err := os.WriteFile(file, []byte("You've hit your usage limit"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := ClassifySession("codex", "", file, 0, Dirs{}, time.Now()); got.Status != RateLimited {
+		t.Fatalf("expected rate limit from final response, got %+v", got)
+	}
+	if got := ClassifySession("codex", "", "", 1, Dirs{}, time.Now()); got.Status != Failed {
+		t.Fatalf("expected failed exit without a response, got %+v", got)
+	}
+}
+
 func TestSessionNameAndID(t *testing.T) {
 	ts := time.Date(2026, 10, 3, 9, 5, 7, 0, time.Local)
 	if got := FormatSessionName("agent_docs/plans/a/b c.md", ts, nil); got != "2026-10-03_09-05-07__a__b_c" {

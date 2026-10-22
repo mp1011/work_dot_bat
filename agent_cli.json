@@ -2,8 +2,8 @@
   "agents": [
     {
       "id": "agy",
-      "key": "a",
-      "aliases": ["agy", "antigravity"],
+      "key": "1",
+      "aliases": ["agy", "antigravity", "gemini-flash"],
       "label": "Google Antigravity (Gemini 3.8 Flash)",
       "cmd": "agy",
       "args": ["--add-dir", "{repoRoot}", "--model", "gemini-3.8-flash", "--effort", "medium"],
@@ -13,8 +13,44 @@
       "session": { "reader": "agy", "logFile": true }
     },
     {
+      "id": "agy-gemini-4-argon",
+      "key": "2",
+      "aliases": ["agy-argon", "agy-gemini-argon", "argon"],
+      "label": "Google Antigravity (Gemini 4 Argon)",
+      "cmd": "agy",
+      "args": ["--add-dir", "{repoRoot}", "--model", "gemini-4-argon", "--effort", "medium"],
+      "logFileArgs": ["--log-file", "{logFile}"],
+      "interactiveArgs": ["-i", "{prompt}"],
+      "printArgs": ["--print", "{prompt}"],
+      "session": { "reader": "agy", "logFile": true }
+    },
+    {
+      "id": "agy-claude-sonnet",
+      "key": "3",
+      "aliases": ["agy-claude-sonnet", "agy-sonnet"],
+      "label": "Google Antigravity (Claude Sonnet)",
+      "cmd": "agy",
+      "args": ["--add-dir", "{repoRoot}", "--model", "claude-sonnet-5-5", "--effort", "medium"],
+      "logFileArgs": ["--log-file", "{logFile}"],
+      "interactiveArgs": ["-i", "{prompt}"],
+      "printArgs": ["--print", "{prompt}"],
+      "session": { "reader": "agy", "logFile": true }
+    },
+    {
+      "id": "agy-claude-opus",
+      "key": "4",
+      "aliases": ["agy-claude-opus", "agy-opus"],
+      "label": "Google Antigravity (Claude Opus)",
+      "cmd": "agy",
+      "args": ["--add-dir", "{repoRoot}", "--model", "claude-opus-5-5", "--effort", "medium"],
+      "logFileArgs": ["--log-file", "{logFile}"],
+      "interactiveArgs": ["-i", "{prompt}"],
+      "printArgs": ["--print", "{prompt}"],
+      "session": { "reader": "agy", "logFile": true }
+    },
+    {
       "id": "claude-sonnet",
-      "key": "c",
+      "key": "5",
       "aliases": ["claude-sonnet", "claude", "sonnet"],
       "label": "Claude Code (Sonnet)",
       "cmd": "claude",
@@ -26,7 +62,7 @@
     },
     {
       "id": "claude-opus",
-      "key": "o",
+      "key": "6",
       "aliases": ["claude-opus", "opus"],
       "label": "Claude Code (Opus)",
       "cmd": "claude",
@@ -35,6 +71,30 @@
       "interactiveArgs": ["{prompt}"],
       "printArgs": ["--print", "{prompt}"],
       "session": { "reader": "claude" }
+    },
+    {
+      "id": "codex",
+      "key": "7",
+      "aliases": ["openai", "codex-sol", "gpt-6.1-sol"],
+      "label": "OpenAI Codex (GPT-6.1 Sol)",
+      "cmd": "codex",
+      "args": ["--model", "gpt-6.1-sol", "--approve-for-me"],
+      "interactiveArgs": ["{prompt}"],
+      "printArgs": ["exec", "{prompt}"],
+      "printLogFileArgs": ["--output-last-message", "{logFile}"],
+      "session": { "reader": "codex", "logFile": true }
+    },
+    {
+      "id": "codex-astra",
+      "key": "8",
+      "aliases": ["astra", "gpt-6-astra"],
+      "label": "OpenAI Codex (GPT-6 Astra)",
+      "cmd": "codex",
+      "args": ["--model", "gpt-6-astra", "--approve-for-me"],
+      "interactiveArgs": ["{prompt}"],
+      "printArgs": ["exec", "{prompt}"],
+      "printLogFileArgs": ["--output-last-message", "{logFile}"],
+      "session": { "reader": "codex", "logFile": true }
     }
   ]
 }

@@ -26,8 +26,18 @@ type mergeBack struct {
 // resolveMergeBack resolves the gate for the selected plan, returning the branch and worktree it
 // resolved so the menu and the action agree on exactly one answer.
 func (a App) resolveMergeBack(task *taskmenu.Item) mergeBack {
-	branch := planstatus.BranchNameForPlan(task.Path, a.tasks())
-	wt := worktree.FindForBranch(a.worktrees(), branch)
+	tasks := a.tasks()
+	branch := ""
+	if task != nil && task.WorktreeBranch != "" {
+		branch = task.WorktreeBranch
+	}
+	if branch == "" && task != nil {
+		branch = planstatus.BranchNameForPlan(task.Path, tasks)
+	}
+	wt := a.taskWorktree(task, tasks)
+	if wt != nil && branch == "" {
+		branch = wt.Branch
+	}
 	return mergeBack{
 		branch: branch, worktree: wt,
 		availability: worktree.MergeAvailability(worktree.IsTreeDirty(a.GitOut, a.Root), wt, branch, worktree.CurrentBranch(a.GitOut, a.Root)),

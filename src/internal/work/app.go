@@ -117,10 +117,24 @@ func (a App) worktrees() []planstatus.Worktree {
 }
 
 func (a App) setStatus(path, status string, human bool) bool {
+	return a.setStatusIn(a.Root, path, status, human)
+}
+
+func (a App) setStatusIn(dir, path, status string, human bool) bool {
 	if a.SetStatus != nil {
 		return a.SetStatus(path, status, human)
 	}
-	if err := planstatus.Set(a.Root, path, status, human); err != nil {
+	root := dir
+	if root == "" {
+		root = a.Root
+	}
+	if err := planstatus.Set(root, path, status, human); err != nil {
+		if root != a.Root {
+			if err2 := planstatus.Set(a.Root, path, status, human); err2 == nil {
+				a.logf("Set %s -> %s", path, status)
+				return true
+			}
+		}
 		a.log(err.Error())
 		return false
 	}
@@ -333,22 +347,30 @@ func (a App) loopUntilDone(ctx context.Context, parent *taskmenu.Item, agent str
 	}
 	stop := a.guard()
 	defer stop()
+	tasks := a.tasks()
+	targetDir := a.Root
+	if wt := a.taskWorktree(parent, tasks); wt != nil && wt.Path != "" {
+		targetDir = wt.Path
+	}
 	res := batch.RunLoopUntilDone(batch.LoopRun{
 		Parent:   parent.Entry,
 		GetTasks: a.tasks,
 		RunAgent: func(prompt, planPath string, attempt int) batch.AgentResult {
-			return a.RunAgentNonInteractive(ctx, agent, prompt, planPath, attempt)
+			return a.RunAgentNonInteractiveIn(ctx, agent, prompt, planPath, attempt, targetDir)
 		},
 		RunTests: a.RunTests,
 		ReadPlan: func(planPath string) string {
 			full := planPath
 			if !filepath.IsAbs(full) {
-				full = filepath.Join(a.Root, filepath.FromSlash(planPath))
+				full = filepath.Join(targetDir, filepath.FromSlash(planPath))
 			}
-			b, _ := os.ReadFile(full)
+			b, err := os.ReadFile(full)
+			if err != nil && targetDir != a.Root {
+				b, _ = os.ReadFile(filepath.Join(a.Root, filepath.FromSlash(planPath)))
+			}
 			return string(b)
 		},
-		UpdateStatus: func(path, status string) bool { return a.setStatus(path, status, false) },
+		UpdateStatus: func(path, status string) bool { return a.setStatusIn(targetDir, path, status, false) },
 		OnLog:        a.log,
 	})
 	return res.Success
@@ -369,10 +391,36 @@ func (a App) chooseAgent(current *string) (ok bool) {
 	return true
 }
 
-func (a App) markInProgress(task *taskmenu.Item) {
+func (a App) taskWorktree(task *taskmenu.Item, tasks []planstatus.Entry) *planstatus.Worktree {
+	if task == nil {
+		return nil
+	}
+	trees := a.worktrees()
+	if task.WorktreeBranch != "" {
+		if wt := worktree.FindForBranch(trees, task.WorktreeBranch); wt != nil && !wt.Prunable {
+			return wt
+		}
+	}
+	branch := planstatus.BranchNameForPlan(task.Path, tasks)
+	if branch != "" {
+		if wt := worktree.FindForBranch(trees, branch); wt != nil && !wt.Prunable {
+			return wt
+		}
+	}
+	if task.WorktreePath != "" {
+		for i := range trees {
+			if filepath.Clean(trees[i].Path) == filepath.Clean(task.WorktreePath) && !trees[i].Prunable {
+				return &trees[i]
+			}
+		}
+	}
+	return nil
+}
+
+func (a App) markInProgress(task *taskmenu.Item, targetDir string) {
 	if task.Status == "Not Started" || task.Status == "Suggestion" {
 		a.logf("\nUpdating task status from \"%s\" to \"In Progress\"...", task.Status)
-		if a.setStatus(task.Path, "In Progress", false) {
+		if a.setStatusIn(targetDir, task.Path, "In Progress", false) {
 			task.Status = "In Progress"
 		}
 	}
@@ -383,6 +431,7 @@ func (a App) taskStep(ctx context.Context, task *taskmenu.Item, agent *string) f
 	for _, t := range tasks {
 		if t.Path == task.Path {
 			task.Status, task.Auto = t.Status, t.Auto
+			task.WorktreeBranch, task.WorktreePath = t.WorktreeBranch, t.WorktreePath
 			break
 		}
 	}
@@ -394,12 +443,16 @@ func (a App) taskStep(ctx context.Context, task *taskmenu.Item, agent *string) f
 	a.log("\n---------------------------------------------------")
 	a.logf("Task: %s%s", task.Path, autoTag)
 	a.logf("Current Status: [%s]", taskmenu.ColorizeStatus(task.Status, task.Status, a.IsTTY))
-	branch := planstatus.BranchNameForPlan(task.Path, tasks)
-	wt := worktree.FindForBranch(a.worktrees(), branch)
+	wt := a.taskWorktree(task, tasks)
 	if wt != nil {
-		a.logf("Worktree: %s (%s)", wt.Path, branch)
+		a.logf("Worktree: %s (%s)", wt.Path, wt.Branch)
 	}
 	a.log("---------------------------------------------------")
+
+	targetDir := a.Root
+	if wt != nil && wt.Path != "" {
+		targetDir = wt.Path
+	}
 
 	canWork := task.Status != "Done" && task.Status != "Cancelled"
 	isParent := taskmenu.TaskHasSubtasks(task.Entry, items)
@@ -419,7 +472,7 @@ func (a App) taskStep(ctx context.Context, task *taskmenu.Item, agent *string) f
 			a.logf("\nTask is marked %s.", task.Status)
 			break
 		}
-		return a.workOnTask(ctx, task, agent, isParent)
+		return a.workOnTask(ctx, task, agent, isParent, targetDir)
 	case "l":
 		switch {
 		case !isParent:
@@ -442,25 +495,25 @@ func (a App) taskStep(ctx context.Context, task *taskmenu.Item, agent *string) f
 			a.logf("\nTask is marked %s.", task.Status)
 			break
 		}
-		return a.generalRequest(ctx, task, agent)
+		return a.generalRequest(ctx, task, agent, targetDir)
 	case "d":
 		if task.Status != "Ready for Review" {
 			a.log("\nTask must be \"Ready for Review\" to mark as Done.")
 			break
 		}
 		a.logf("\nMarking \"%s\" as Done...", task.Path)
-		if a.setStatus(task.Path, "Done", false) {
+		if a.setStatusIn(targetDir, task.Path, "Done", false) {
 			task.Status = "Done"
 			a.log("Task successfully marked as Done!")
 		}
 	case "c":
-		a.cancelTask(task)
+		a.cancelTask(task, targetDir)
 	case "m":
-		if a.MergeBack == nil {
-			a.log("\n[NOT YET PORTED] Merge back is not available in the Go launcher yet.")
-		} else {
-			a.MergeBack(task)
+		merge := a.MergeBack
+		if merge == nil {
+			merge = a.mergeBackWorkflow
 		}
+		merge(task)
 	case "t":
 		a.testMenu()
 	case "tu":
@@ -494,8 +547,8 @@ func (a App) taskStep(ctx context.Context, task *taskmenu.Item, agent *string) f
 
 // workOnTask launches the work skill on the task: do-work-yolo for a leaf plan,
 // next-subtask-yolo for a parent.
-func (a App) workOnTask(ctx context.Context, task *taskmenu.Item, agent *string, isParent bool) flow {
-	a.markInProgress(task)
+func (a App) workOnTask(ctx context.Context, task *taskmenu.Item, agent *string, isParent bool, targetDir string) flow {
+	a.markInProgress(task, targetDir)
 	special, ok := a.ask("\nEnter any special instructions for this task (or press Enter to skip): ")
 	if !ok || !a.chooseAgent(agent) {
 		return quit
@@ -513,7 +566,7 @@ func (a App) workOnTask(ctx context.Context, task *taskmenu.Item, agent *string,
 		prompt += agentcmd.ImmediatePlanNote
 	}
 	launch := func(prompt string) {
-		if err := a.LaunchInteractiveAgent(ctx, *agent, planPath, prompt); err != nil {
+		if err := a.LaunchInteractiveAgentIn(ctx, *agent, planPath, prompt, targetDir); err != nil {
 			a.logf("\n[ERROR] %v", err)
 			return
 		}
@@ -523,15 +576,15 @@ func (a App) workOnTask(ctx context.Context, task *taskmenu.Item, agent *string,
 	return stay
 }
 
-func (a App) generalRequest(ctx context.Context, task *taskmenu.Item, agent *string) flow {
-	a.markInProgress(task)
+func (a App) generalRequest(ctx context.Context, task *taskmenu.Item, agent *string, targetDir string) flow {
+	a.markInProgress(task, targetDir)
 	request, ok := a.ask("\nEnter your request for the agent (or press Enter to skip): ")
 	if !ok || !a.chooseAgent(agent) {
 		return quit
 	}
 	planPath := agentDocsPath(task.Path)
-	prompt := agentcmd.BuildGeneralAgentPrompt(planPath, request, a.Root, a.log)
-	if err := a.LaunchInteractiveAgent(ctx, *agent, planPath, prompt); err != nil {
+	prompt := agentcmd.BuildGeneralAgentPrompt(planPath, request, targetDir, a.log)
+	if err := a.LaunchInteractiveAgentIn(ctx, *agent, planPath, prompt, targetDir); err != nil {
 		a.logf("\n[ERROR] %v", err)
 		return stay
 	}
@@ -539,7 +592,7 @@ func (a App) generalRequest(ctx context.Context, task *taskmenu.Item, agent *str
 	return stay
 }
 
-func (a App) cancelTask(task *taskmenu.Item) {
+func (a App) cancelTask(task *taskmenu.Item, targetDir string) {
 	if task.Status == "Done" || task.Status == "Cancelled" {
 		a.logf("\nTask is already marked %s.", task.Status)
 		return
@@ -550,12 +603,20 @@ func (a App) cancelTask(task *taskmenu.Item) {
 		return
 	}
 	a.logf("\nMarking \"%s\" as Cancelled...", task.Path)
-	if !a.setStatus(task.Path, "Cancelled", true) {
+	if !a.setStatusIn(targetDir, task.Path, "Cancelled", true) {
 		return
 	}
 	task.Status = "Cancelled"
-	full := filepath.Join(a.Root, filepath.FromSlash(agentDocsPath(task.Path)))
+	root := targetDir
+	if root == "" {
+		root = a.Root
+	}
+	full := filepath.Join(root, filepath.FromSlash(agentDocsPath(task.Path)))
 	existing, err := os.ReadFile(full)
+	if err != nil && root != a.Root {
+		full = filepath.Join(a.Root, filepath.FromSlash(agentDocsPath(task.Path)))
+		existing, err = os.ReadFile(full)
+	}
 	switch {
 	case os.IsNotExist(err):
 		a.logf("[WARN] Plan file does not exist at %s", full)

@@ -32,9 +32,10 @@ type fixture struct {
 	root   string
 	out    bytes.Buffer
 	inputs []string
-	agent  []agentcmd.Command // commands the fake agent was given
-	gitRun [][]string
-	app    App
+	agent     []agentcmd.Command // commands the fake agent was given
+	agentDirs []string           // working directories the fake agent was given
+	gitRun    [][]string
+	app       App
 	// onAgent runs inside the fake agent.
 	onAgent func(ctx context.Context) int
 }
@@ -65,6 +66,7 @@ func newFixture(t *testing.T, inputs ...string) *fixture {
 		},
 		RunAgent: func(ctx context.Context, c agentcmd.Command, dir string) (int, error) {
 			f.agent = append(f.agent, c)
+			f.agentDirs = append(f.agentDirs, dir)
 			if f.onAgent != nil {
 				return f.onAgent(ctx), nil
 			}
@@ -105,7 +107,7 @@ func planStatusOf(t *testing.T, root, rel string) string {
 
 // Work on a leaf plan launches the agent directly, even though the agent fails.
 func TestWorkOnLeafLaunchesAgentDirectly(t *testing.T) {
-	f := newFixture(t, "w", "be careful", "c", "n", "s")
+	f := newFixture(t, "w", "be careful", "5", "n", "s")
 	f.selecting("plans/x.md")
 	f.onAgent = func(context.Context) int { return 1 }
 	if code := f.run(); code != 0 {
@@ -126,7 +128,7 @@ func TestWorkOnLeafLaunchesAgentDirectly(t *testing.T) {
 	if len(ledger) != 1 || ledger[0]["status"] != "failed" || ledger[0]["exitCode"] != float64(1) || ledger[0]["plan"] != "agent_docs/plans/x.md" {
 		t.Errorf("ledger %v", ledger)
 	}
-	for _, want := range []string{"Session Name: ", "Launching Claude Code (Sonnet) interactively with prompt:", "[Agent session completed]", "Do you want to run automated tests? (y/n): "} {
+	for _, want := range []string{"Session Name: ", "Launching Claude Code (Sonnet) interactively with prompt:", "Running in: "+f.root, "Command:    ", wantPrompt, "[Agent session completed]", "Do you want to run automated tests? (y/n): "} {
 		if !strings.Contains(f.out.String(), want) {
 			t.Errorf("output missing %q:\n%s", want, f.out.String())
 		}
@@ -143,7 +145,7 @@ func contains(list []string, s string) bool {
 }
 
 func TestParentPlanRunsNextSubtask(t *testing.T) {
-	f := newFixture(t, "w", "", "c", "n", "s")
+	f := newFixture(t, "w", "", "5", "n", "s")
 	writePlan(t, f.root, "plans/p/plan.md", "---\nstatus: In Progress\n---\n\n# GOAL\nparent\n")
 	writePlan(t, f.root, "plans/p/01.md", "---\nstatus: Not Started\nsubtask_of: plans/p/plan.md\n---\n\n# GOAL\nchild\n")
 	f.selecting("plans/p/plan.md")
@@ -177,7 +179,7 @@ func TestTaskMenuGolden(t *testing.T) {
 
 
 func TestGeneralRequestUsesPlanContextPrompt(t *testing.T) {
-	f := newFixture(t, "g", "look at the tests", "a", "n", "s")
+	f := newFixture(t, "g", "look at the tests", "1", "n", "s")
 	f.selecting("plans/x.md")
 	f.run()
 	if len(f.agent) != 1 {
@@ -335,7 +337,7 @@ func TestNoTaskTestMenu(t *testing.T) {
 
 func TestPostSessionRunTestsShowsTestMenu(t *testing.T) {
 	var calledWith []string
-	f := newFixture(t, "w", "", "c", "y", "1", "s")
+	f := newFixture(t, "w", "", "5", "y", "1", "s")
 	f.app.RunTests = func(layers ...string) []string {
 		calledWith = layers
 		return nil
@@ -433,7 +435,7 @@ var _ = exec.Command
 // Loop mode through the launcher: subtasks then parent, non-interactive (--print) runs under the
 // runs, attempts recorded in the ledger.
 func TestLoopModeRunsNonInteractively(t *testing.T) {
-	f := newFixture(t, "l", "c", "s")
+	f := newFixture(t, "l", "5", "s")
 	writePlan(t, f.root, "plans/p/plan.md", "---\nstatus: In Progress\nplan_order:\n  - plans/p/01.md\n---\n\n# GOAL\nparent\n")
 	writePlan(t, f.root, "plans/p/01.md", "---\nstatus: Not Started\nsubtask_of: plans/p/plan.md\n---\n\n# GOAL\nchild\n")
 	f.selecting("plans/p/plan.md")
@@ -467,7 +469,7 @@ func TestLoopModeRunsNonInteractively(t *testing.T) {
 }
 
 func TestLoopModeInvokesPlanOrderWhenMissing(t *testing.T) {
-	f := newFixture(t, "l", "c", "s")
+	f := newFixture(t, "l", "5", "s")
 	writePlan(t, f.root, "plans/p/plan.md", "---\nstatus: In Progress\n---\n\n# GOAL\nparent\n")
 	writePlan(t, f.root, "plans/p/01.md", "---\nstatus: Not Started\nsubtask_of: plans/p/plan.md\n---\n\n# GOAL\nchild\n")
 	f.selecting("plans/p/plan.md")
@@ -499,7 +501,7 @@ func TestLoopModeInvokesPlanOrderWhenMissing(t *testing.T) {
 }
 
 func TestLoopModeRefusesWithoutTestRunner(t *testing.T) {
-	f := newFixture(t, "l", "c", "s")
+	f := newFixture(t, "l", "5", "s")
 	writePlan(t, f.root, "plans/p/plan.md", "---\nstatus: In Progress\n---\n\n# GOAL\nparent\n")
 	writePlan(t, f.root, "plans/p/01.md", "---\nstatus: Not Started\nsubtask_of: plans/p/plan.md\n---\n\n# GOAL\nchild\n")
 	f.selecting("plans/p/plan.md")
@@ -515,3 +517,61 @@ func planStatusSet(t *testing.T, root, rel, status string) {
 		t.Fatal(err)
 	}
 }
+
+func TestPlanInWorktreeLaunchesAgentInWorktreeDirectory(t *testing.T) {
+	f := newFixture(t, "w", "", "1", "n", "s")
+	wtDir := t.TempDir()
+	writePlan(t, wtDir, "plans/feature.md", "---\nstatus: Not Started\n---\n\n# GOAL\nfeature\n")
+	f.app.Worktrees = func() []planstatus.Worktree {
+		return []planstatus.Worktree{{Path: wtDir, Branch: "feature-branch"}}
+	}
+	f.app.Tasks = func() []planstatus.Entry {
+		return []planstatus.Entry{{Path: "plans/feature.md", Status: "Not Started", WorktreeBranch: "feature-branch", WorktreePath: wtDir}}
+	}
+	f.selecting("plans/feature.md")
+	f.run()
+
+	if len(f.agent) != 1 {
+		t.Fatalf("agent runs: %d\n%s", len(f.agent), f.out.String())
+	}
+	if len(f.agentDirs) != 1 {
+		t.Fatalf("agent dirs: %d", len(f.agentDirs))
+	}
+	if got := f.agentDirs[0]; got != wtDir {
+		t.Errorf("agent dir = %q, want %q", got, wtDir)
+	}
+	c := f.agent[0]
+	foundAddDir := false
+	for i, arg := range c.Args {
+		if arg == "--add-dir" && i+1 < len(c.Args) {
+			if c.Args[i+1] == wtDir {
+				foundAddDir = true
+			}
+		}
+	}
+	if !foundAddDir {
+		t.Errorf("expected --add-dir %s in args: %v", wtDir, c.Args)
+	}
+}
+
+func TestTaskStepMergeOptionDefaultsToMergeBackWorkflow(t *testing.T) {
+	f := newFixture(t, "m", "s")
+	wtDir := t.TempDir()
+	writePlan(t, wtDir, "plans/feature.md", "---\nstatus: Ready for Review\n---\n\n# GOAL\nfeature\n")
+	f.app.Worktrees = func() []planstatus.Worktree {
+		return []planstatus.Worktree{{Path: wtDir, Branch: "feature-branch"}}
+	}
+	f.app.Tasks = func() []planstatus.Entry {
+		return []planstatus.Entry{{Path: "plans/feature.md", Status: "Ready for Review", WorktreeBranch: "feature-branch", WorktreePath: wtDir}}
+	}
+	f.selecting("plans/feature.md")
+	f.run()
+
+	if strings.Contains(f.out.String(), "[NOT YET PORTED]") {
+		t.Errorf("unexpected [NOT YET PORTED] in output:\n%s", f.out.String())
+	}
+	if !strings.Contains(f.out.String(), "Cannot merge back:") && !strings.Contains(f.out.String(), "Merging (--no-ff --no-commit)...") && !strings.Contains(f.out.String(), "already merged into main") {
+		t.Errorf("expected merge-back workflow output, got:\n%s", f.out.String())
+	}
+}
+

@@ -257,6 +257,8 @@ var autoOutcomeAny = regexp.MustCompile(`(?i)AUTO_OUTCOME:`)
 // log (when it carries the marker), the Antigravity brain transcript, or the log tail.
 func ReadFinalMessage(agent, sessionID, logFile string, dirs agentsession.Dirs, root string) string {
 	switch agent {
+	case "codex":
+		return ReadLogFileTail(logFile, logTailBytes)
 	case "claude", "c":
 		projects := dirs.Projects
 		if projects == "" {

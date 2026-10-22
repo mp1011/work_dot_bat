@@ -281,6 +281,9 @@ func FindLatestAgyTranscriptPath(brainDir string) string {
 func ClassifySession(agent, sessionID, logFile string, exitCode int, dirs Dirs, now time.Time) Verdict {
 	var last string
 	switch agent {
+	case "codex":
+		b, _ := os.ReadFile(logFile)
+		last = string(b)
 	case "claude", "c":
 		if t := FindTranscriptPath(sessionID, dirs.projects()); t != "" {
 			last = ReadLastAssistantMessage(t)

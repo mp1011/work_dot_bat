@@ -33,9 +33,9 @@ func gitCalls(f *fixture) []string {
 }
 
 func TestPushHappyPathRunsGateThenAgentThenPushes(t *testing.T) {
-	f, _, ran := pushRig(t, "c", "n")
+	f, _, ran := pushRig(t, "5", "n")
 	agent, pushed := f.app.pushWorkflow(context.Background(), "")
-	if !pushed || agent != "c" || *ran != 1 {
+	if !pushed || agent != "5" || *ran != 1 {
 		t.Fatalf("%v %v gate runs %d\n%s", agent, pushed, *ran, f.out.String())
 	}
 	if len(f.agent) != 1 {
@@ -57,7 +57,7 @@ func TestPushHappyPathRunsGateThenAgentThenPushes(t *testing.T) {
 }
 
 func TestPushFailingChecksSendTheAgentInInteractivelyAndNeverPushOnTheirOwn(t *testing.T) {
-	f, gates, _ := pushRig(t, "c", "c")
+	f, gates, _ := pushRig(t, "5", "c")
 	*gates = [][]string{{"ESLint", "Unit Tests"}, {"ESLint"}}
 	f.app.GitOut = func(dir string, args ...string) (string, error) { return "", nil }
 	_, pushed := f.app.pushWorkflow(context.Background(), "")
@@ -87,11 +87,11 @@ func TestPushFailingChecksSendTheAgentInInteractivelyAndNeverPushOnTheirOwn(t *t
 
 func TestPushRerunsTheAgentWhenAsked(t *testing.T) {
 	// fail, fix → still failing → "y" re-run → passes → agent prepare → "n" → push.
-	f, gates, _ := pushRig(t, "a", "y", "n")
+	f, gates, _ := pushRig(t, "1", "y", "n")
 	*gates = [][]string{{"lint"}, {"lint"}, nil}
 	f.app.GitOut = func(dir string, args ...string) (string, error) { return "", nil }
 	agent, pushed := f.app.pushWorkflow(context.Background(), "")
-	if !pushed || agent != "a" || len(f.agent) != 3 {
+	if !pushed || agent != "1" || len(f.agent) != 3 {
 		t.Fatalf("%v %v agents %d\n%s", agent, pushed, len(f.agent), f.out.String())
 	}
 	if f.agent[0].Cmd != "agy" {
@@ -101,7 +101,7 @@ func TestPushRerunsTheAgentWhenAsked(t *testing.T) {
 
 func TestPushCommitsAnAgentsChangesOnlyWhenTheTreeIsDirty(t *testing.T) {
 	// Dirty after the fix run: add -A + commit with the failing check names.
-	f, gates, _ := pushRig(t, "c", "n")
+	f, gates, _ := pushRig(t, "5", "n")
 	*gates = [][]string{{"ESLint"}, nil}
 	f.app.GitOut = func(dir string, args ...string) (string, error) { return " M src/a.ts\n", nil }
 	f.app.pushWorkflow(context.Background(), "")
@@ -112,7 +112,7 @@ func TestPushCommitsAnAgentsChangesOnlyWhenTheTreeIsDirty(t *testing.T) {
 	}
 
 	// Clean tree: nothing staged or committed.
-	g, gates2, _ := pushRig(t, "c", "n")
+	g, gates2, _ := pushRig(t, "5", "n")
 	*gates2 = [][]string{{"ESLint"}, nil}
 	g.app.GitOut = func(dir string, args ...string) (string, error) { return "", nil }
 	g.app.pushWorkflow(context.Background(), "")
@@ -122,14 +122,14 @@ func TestPushCommitsAnAgentsChangesOnlyWhenTheTreeIsDirty(t *testing.T) {
 }
 
 func TestPushCancelAtThePrepareChoiceAndRerun(t *testing.T) {
-	f, _, _ := pushRig(t, "c", "c")
+	f, _, _ := pushRig(t, "5", "c")
 	if _, pushed := f.app.pushWorkflow(context.Background(), ""); pushed {
 		t.Error("cancel must not push")
 	}
 	if got := gitCalls(f); len(got) != 0 {
 		t.Errorf("%v", got)
 	}
-	g, _, _ := pushRig(t, "c", "y", "n")
+	g, _, _ := pushRig(t, "5", "y", "n")
 	_, pushed := g.app.pushWorkflow(context.Background(), "")
 	if !pushed || len(g.agent) != 2 {
 		t.Errorf("(y) re-runs the prepare command before continuing: pushed %v agents %d", pushed, len(g.agent))
@@ -147,14 +147,14 @@ func TestPushRefusesWithoutAGateAndHonoursAQuitAtTheAgentChoice(t *testing.T) {
 	}
 	// An already-selected agent is not asked again.
 	h, _, _ := pushRig(t, "n")
-	if agent, pushed := h.app.pushWorkflow(context.Background(), "c"); !pushed || agent != "c" || strings.Contains(h.out.String(), "Choose agent") {
+	if agent, pushed := h.app.pushWorkflow(context.Background(), "5"); !pushed || agent != "5" || strings.Contains(h.out.String(), "Choose agent") {
 		t.Errorf("%v %v\n%s", agent, pushed, h.out.String())
 	}
 	var _ agentcmd.Command
 }
 
 func TestMenuPushUsesTheWorkflow(t *testing.T) {
-	f, _, _ := pushRig(t, "p", "c", "n", "s")
+	f, _, _ := pushRig(t, "p", "5", "n", "s")
 	f.app.Pick = func() taskmenu.Result { return taskmenu.Result{} }
 	picks := 0
 	f.app.Pick = func() taskmenu.Result {
@@ -171,14 +171,14 @@ func TestMenuPushUsesTheWorkflow(t *testing.T) {
 }
 
 func TestPushEnforcesUltraHeavyTier(t *testing.T) {
-	f := newFixture(t, "c", "n")
+	f := newFixture(t, "5", "n")
 	var requestedLayers []string
 	f.app.RunTests = func(layers ...string) []string {
 		requestedLayers = append(requestedLayers, layers...)
 		return nil
 	}
 	agent, pushed := f.app.pushWorkflow(context.Background(), "")
-	if !pushed || agent != "c" {
+	if !pushed || agent != "5" {
 		t.Fatalf("%v %v\n%s", agent, pushed, f.out.String())
 	}
 	if len(requestedLayers) == 0 || requestedLayers[0] != "ultra_heavy" {

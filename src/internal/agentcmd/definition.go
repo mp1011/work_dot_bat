@@ -16,6 +16,7 @@ const CLIFile = "agent_cli.json"
 const (
 	ReaderClaude = "claude" // ~/.claude/projects/**/<sessionId>.jsonl
 	ReaderAgy    = "agy"    // Antigravity brain transcript, located via the run's log file
+	ReaderCodex  = "codex"  // final response saved by codex exec
 )
 
 // Session says how to find and read an agent's chat session after a run.
@@ -36,17 +37,28 @@ type Definition struct {
 	Label   string   `json:"label"`   // human name for menus and logs
 	Cmd     string   `json:"cmd"`
 
-	Args            []string `json:"args"`            // always
-	SessionIDArgs   []string `json:"sessionIdArgs"`   // when a session id is given
-	LogFileArgs     []string `json:"logFileArgs"`     // when a log file is given
-	InteractiveArgs []string `json:"interactiveArgs"` // last, interactive runs
-	PrintArgs       []string `json:"printArgs"`       // last, one-shot runs
+	Args             []string `json:"args"`                       // always
+	SessionIDArgs    []string `json:"sessionIdArgs"`              // when a session id is given
+	LogFileArgs      []string `json:"logFileArgs"`                // when a log file is given
+	InteractiveArgs  []string `json:"interactiveArgs"`            // last, interactive runs
+	PrintArgs        []string `json:"printArgs"`                  // last, one-shot runs
+	PrintLogFileArgs []string `json:"printLogFileArgs,omitempty"` // one-shot output file flags
 
 	Session Session `json:"session"`
 }
 
-// DefaultDefinitions are the two built-in agents.
+// DefaultDefinitions are the built-in agents.
 func DefaultDefinitions() []Definition {
+	agy := func(id, key, label, model string, aliases ...string) Definition {
+		return Definition{
+			ID: id, Key: key, Aliases: aliases, Label: label, Cmd: "agy",
+			Args:            []string{"--add-dir", "{repoRoot}", "--model", model, "--effort", "medium"},
+			LogFileArgs:     []string{"--log-file", "{logFile}"},
+			InteractiveArgs: []string{"-i", "{prompt}"},
+			PrintArgs:       []string{"--print", "{prompt}"},
+			Session:         Session{Reader: ReaderAgy, LogFile: true},
+		}
+	}
 	claude := func(id, key, label, model string, aliases ...string) Definition {
 		return Definition{
 			ID: id, Key: key, Aliases: aliases, Label: label, Cmd: "claude",
@@ -58,16 +70,26 @@ func DefaultDefinitions() []Definition {
 		}
 	}
 	return []Definition{
+		agy("agy", "1", "Google Antigravity (Gemini 3.8 Flash)", "gemini-3.8-flash", "agy", "antigravity", "gemini-flash"),
+		agy("agy-gemini-4-argon", "2", "Google Antigravity (Gemini 4 Argon)", "gemini-4-argon", "agy-argon", "agy-gemini-argon", "argon"),
+		agy("agy-claude-sonnet", "3", "Google Antigravity (Claude Sonnet)", "claude-sonnet-5-5", "agy-claude-sonnet", "agy-sonnet"),
+		agy("agy-claude-opus", "4", "Google Antigravity (Claude Opus)", "claude-opus-5-5", "agy-claude-opus", "agy-opus"),
+		claude("claude-sonnet", "5", "Claude Code (Sonnet)", "sonnet", "claude-sonnet", "claude", "sonnet"),
+		claude("claude-opus", "6", "Claude Code (Opus)", "opus", "claude-opus", "opus"),
 		{
-			ID: "agy", Key: "a", Aliases: []string{"agy", "antigravity"}, Label: "Google Antigravity (Gemini 3.8 Flash)", Cmd: "agy",
-			Args:            []string{"--add-dir", "{repoRoot}", "--model", "gemini-3.8-flash", "--effort", "medium"},
-			LogFileArgs:     []string{"--log-file", "{logFile}"},
-			InteractiveArgs: []string{"-i", "{prompt}"},
-			PrintArgs:       []string{"--print", "{prompt}"},
-			Session:         Session{Reader: ReaderAgy, LogFile: true},
+			ID: "codex", Key: "7", Aliases: []string{"openai", "codex-sol", "gpt-6.1-sol"}, Label: "OpenAI Codex (GPT-6.1 Sol)", Cmd: "codex",
+			Args:            []string{"--model", "gpt-6.1-sol", "--approve-for-me"},
+			InteractiveArgs: []string{"{prompt}"}, PrintArgs: []string{"exec", "{prompt}"},
+			PrintLogFileArgs: []string{"--output-last-message", "{logFile}"},
+			Session:          Session{Reader: ReaderCodex, LogFile: true},
 		},
-		claude("claude-sonnet", "c", "Claude Code (Sonnet)", "sonnet", "claude-sonnet", "claude", "sonnet"),
-		claude("claude-opus", "o", "Claude Code (Opus)", "opus", "claude-opus", "opus"),
+		{
+			ID: "codex-astra", Key: "8", Aliases: []string{"astra", "gpt-6-astra"}, Label: "OpenAI Codex (GPT-6 Astra)", Cmd: "codex",
+			Args:            []string{"--model", "gpt-6-astra", "--approve-for-me"},
+			InteractiveArgs: []string{"{prompt}"}, PrintArgs: []string{"exec", "{prompt}"},
+			PrintLogFileArgs: []string{"--output-last-message", "{logFile}"},
+			Session:          Session{Reader: ReaderCodex, LogFile: true},
+		},
 	}
 }
 
@@ -98,6 +120,9 @@ func overlay(base Definition, o Definition) Definition {
 	}
 	if o.PrintArgs != nil {
 		base.PrintArgs = o.PrintArgs
+	}
+	if o.PrintLogFileArgs != nil {
+		base.PrintLogFileArgs = o.PrintLogFileArgs
 	}
 	if o.Session.Reader != "" {
 		base.Session.Reader = o.Session.Reader
@@ -138,7 +163,7 @@ func LoadDefinitions(dir string) []Definition {
 			}
 		}
 		if !found {
-			if o.Cmd == "" || o.Key == "" || (o.Session.Reader != ReaderClaude && o.Session.Reader != ReaderAgy) {
+			if o.Cmd == "" || o.Key == "" || (o.Session.Reader != ReaderClaude && o.Session.Reader != ReaderAgy && o.Session.Reader != ReaderCodex) {
 				continue // a new agent needs a command, a menu key, and a known session reader
 			}
 			defs = append(defs, overlay(Definition{ID: o.ID}, o))

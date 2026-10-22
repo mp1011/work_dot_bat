@@ -6,14 +6,30 @@ overrides agents with its own `agent_cli.json` at its root (`agentcmd.LoadDefini
 `agentcmd.ProjectSettings`). `TestRepoAgentCLIFileMatchesBuiltIns` keeps the two in step.
 
 **Every agent is self-contained.** The model and other flags are written into its `args`; there is no
-separate model/effort setting. Claude Sonnet and Claude Opus are two agents (`c`, `o`) that share a `cmd`,
-not one agent with a parameter. (`agent_settings.json`, `WORK_DOT_BAT_AGENT_SETTINGS` and the config
-`agents` block no longer affect agent launching.)
+separate model/effort setting. Agents are assigned numeric keys (`1`, `2`, `3`...) rather than single letters
+to cleanly differentiate multiple models across both Google Antigravity (`agy`) and Claude Code (`claude`).
+
+The default agents are:
+1. `Google Antigravity (Gemini 3.8 Flash)` (`agy`) - key `1`
+2. `Google Antigravity (Gemini 4 Argon)` (`agy-gemini-4-argon`) - key `2`
+3. `Google Antigravity (Claude Sonnet)` (`agy-claude-sonnet`) - key `3`
+4. `Google Antigravity (Claude Opus)` (`agy-claude-opus`) - key `4`
+5. `Claude Code (Sonnet)` (`claude-sonnet`) - key `5`
+6. `Claude Code (Opus)` (`claude-opus`) - key `6`
+7. `OpenAI Codex (GPT-6.1 Sol)` (`codex`, aliases `openai`, `codex-sol`, `gpt-6.1-sol`) - key `7`
+8. `OpenAI Codex (GPT-6 Astra)` (`codex-astra`, aliases `astra`, `gpt-6-astra`) - key `8`
+
+Codex passes an explicit `--model` (`gpt-6.1-sol` or `gpt-6-astra`) and uses `--approve-for-me` for automatic approval
+review within the workspace sandbox. Install and authenticate the `codex` CLI before selecting it.
+Interactive runs use `codex <prompt>`; automation uses `codex exec <prompt>` and saves its final
+response with `--output-last-message`. The `codex` reader uses that file for classification and
+daemon outcome markers. Interactive runs are classified by exit code; their final response is not
+captured. Codex creates its own session IDs, so the ledger's generated ID is not passed to it.
 
 ```json
 { "agents": [
   { "id": "claude-opus", "args": ["--model", "opus", "--permission-mode", "auto"] },
-  { "id": "gem", "key": "g", "label": "Gem CLI", "cmd": "gem",
+  { "id": "gem", "key": "9", "label": "Gem CLI", "cmd": "gem",
     "args": ["-m", "x"], "interactiveArgs": ["{prompt}"], "printArgs": ["-p", "{prompt}"],
     "session": { "reader": "claude", "dir": "~/.gem/sessions" } }
 ] }
@@ -21,6 +37,8 @@ not one agent with a parameter. (`agent_settings.json`, `WORK_DOT_BAT_AGENT_SETT
 
 - **Invoke:** command line = `args` + (`sessionIdArgs` if a session id) + (`logFileArgs` if a log file) +
   `interactiveArgs` or `printArgs`. Placeholders: `{prompt} {repoRoot} {sessionId} {logFile}`.
+  Non-interactive runs also append `printLogFileArgs` when a log file is supplied, allowing
+  output flags that must follow a subcommand such as `exec`.
 - **Override vs add:** an entry with an existing id replaces only the fields it sets; a new id needs `cmd`,
   `key`, and `session.reader`.
 - **Read sessions:** `session.reader` picks a transcript format — `claude` (`<dir>/**/<sessionId>.jsonl`) or `agy`

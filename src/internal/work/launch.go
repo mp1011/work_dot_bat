@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	"work_dot_bat/src/internal/agentcmd"
@@ -58,7 +60,7 @@ func GuardInterrupt() (stop func()) {
 
 // session runs the agent once under a recorded ledger session and classifies how it ended.
 // announce, if non-nil, is called after the session is recorded and before the agent starts.
-func (a App) session(ctx context.Context, agent, planPath string, attempt *int, interactive bool, prompt string,
+func (a App) session(ctx context.Context, agent, planPath, targetDir string, attempt *int, interactive bool, prompt string,
 	announce func(name, sessionID, logFile string)) (agentsession.Verdict, error) {
 	name := agentsession.FormatSessionName(planPath, a.now(), attempt)
 	sessionID := agentsession.SessionID(name)
@@ -93,10 +95,15 @@ func (a App) session(ctx context.Context, agent, planPath string, attempt *int, 
 		agentsession.RecordEnd(ledger, end, a.now())
 	}()
 
+	targetRoot := targetDir
+	if targetRoot == "" {
+		targetRoot = a.Root
+	}
 	cmd := agentcmd.BuildCommand(agent, agentcmd.CommandOptions{
-		RepoRoot: a.Root, Prompt: prompt, Interactive: interactive, SessionID: sessionID, LogFile: logFile,
+		RepoRoot: targetRoot, Prompt: prompt, Interactive: interactive, SessionID: sessionID, LogFile: logFile,
 	}, settings)
-	code, err := a.runAgent()(ctx, cmd, a.Root)
+	a.logf("Running in: %s\nCommand:    %s\n", targetRoot, commandLine(cmd))
+	code, err := a.runAgent()(ctx, cmd, targetRoot)
 	if err != nil {
 		exitCode = 1
 		return verdict, err
@@ -111,7 +118,12 @@ func (a App) session(ctx context.Context, agent, planPath string, attempt *int, 
 // LaunchInteractiveAgent starts the agent on the terminal for planPath with promptText,
 // recording the session in the ledger and reporting how it ended.
 func (a App) LaunchInteractiveAgent(ctx context.Context, agent, planPath, promptText string) error {
-	verdict, err := a.session(ctx, agent, planPath, nil, true, promptText, func(name, sessionID, logFile string) {
+	return a.LaunchInteractiveAgentIn(ctx, agent, planPath, promptText, a.Root)
+}
+
+// LaunchInteractiveAgentIn starts the agent on the terminal in targetDir for planPath with promptText.
+func (a App) LaunchInteractiveAgentIn(ctx context.Context, agent, planPath, promptText, targetDir string) error {
+	verdict, err := a.session(ctx, agent, planPath, targetDir, nil, true, promptText, func(name, sessionID, logFile string) {
 		a.logf("\nSession Name: %s", name)
 		def := a.settings().Agent(agent)
 		if def.Session.LogFile {
@@ -139,12 +151,36 @@ func (a App) LaunchInteractiveAgent(ctx context.Context, agent, planPath, prompt
 // RunAgentNonInteractive runs the agent one-shot (--print) as an attempt of a loop run. An
 // agent that bounced off a usage limit reports RateLimited; any other outcome is "it ran".
 func (a App) RunAgentNonInteractive(ctx context.Context, agent, prompt, planPath string, attempt int) batch.AgentResult {
-	verdict, err := a.session(ctx, agent, planPath, agentsession.Attempt(attempt), false, prompt, nil)
+	return a.RunAgentNonInteractiveIn(ctx, agent, prompt, planPath, attempt, a.Root)
+}
+
+// RunAgentNonInteractiveIn runs the agent one-shot (--print) in targetDir.
+func (a App) RunAgentNonInteractiveIn(ctx context.Context, agent, prompt, planPath string, attempt int, targetDir string) batch.AgentResult {
+	verdict, err := a.session(ctx, agent, planPath, targetDir, agentsession.Attempt(attempt), false, prompt, nil)
 	if err != nil {
 		a.logf("[ERROR] %v", err)
 		return batch.AgentResult{}
 	}
 	return batch.AgentResult{RateLimited: verdict.Status == agentsession.RateLimited, ResetAt: verdict.ResetAt}
+}
+
+// commandLine renders c as a copy-pasteable line, with the executable's full path when it resolves.
+func commandLine(c agentcmd.Command) string {
+	exe := c.Cmd
+	if p, err := exec.LookPath(exe); err == nil {
+		if abs, err := filepath.Abs(p); err == nil {
+			p = abs
+		}
+		exe = p
+	}
+	parts := make([]string, 0, len(c.Args)+1)
+	for _, s := range append([]string{exe}, c.Args...) {
+		if s == "" || strings.ContainsAny(s, " \t\n\"'") {
+			s = strconv.Quote(s)
+		}
+		parts = append(parts, s)
+	}
+	return strings.Join(parts, " ")
 }
 
 func (a App) now() time.Time {
