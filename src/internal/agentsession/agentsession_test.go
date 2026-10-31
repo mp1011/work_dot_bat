@@ -186,3 +186,18 @@ func TestRewritingTheLedgerKeepsKeyOrderAndFormat(t *testing.T) {
 		t.Errorf("round trip changed the file:\n%s", got)
 	}
 }
+
+func TestReadLastAssistantMessageSkipsTextlessEntries(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "t.jsonl")
+	lines := `{"type":"assistant","message":{"content":[{"type":"text","text":"All done.\nAUTO_OUTCOME: done"}]}}
+{"type":"assistant","message":{"content":[{"type":"thinking","thinking":"hm"}]}}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash"}]}}
+{"type":"user","message":{"content":"x"}}
+`
+	if err := os.WriteFile(file, []byte(lines), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := ReadLastAssistantMessage(file); got != "All done.\nAUTO_OUTCOME: done" {
+		t.Fatalf("expected the last assistant text, got %q", got)
+	}
+}

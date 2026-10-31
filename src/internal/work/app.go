@@ -382,8 +382,9 @@ func (a App) promptRunTests() {
 	}
 }
 
+// chooseAgent always asks the user which agent to use; a previous choice is never reused.
 func (a App) chooseAgent(current *string) (ok bool) {
-	agent, quit, more := agentcmd.ChooseAgent(*current, a.io(), a.settings().Defs)
+	agent, quit, more := agentcmd.ChooseAgent("", a.io(), a.settings().Defs)
 	if quit || !more {
 		return false
 	}

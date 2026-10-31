@@ -87,7 +87,7 @@ func TestPushFailingChecksSendTheAgentInInteractivelyAndNeverPushOnTheirOwn(t *t
 
 func TestPushRerunsTheAgentWhenAsked(t *testing.T) {
 	// fail, fix → still failing → "y" re-run → passes → agent prepare → "n" → push.
-	f, gates, _ := pushRig(t, "1", "y", "n")
+	f, gates, _ := pushRig(t, "1", "y", "1", "1", "n")
 	*gates = [][]string{{"lint"}, {"lint"}, nil}
 	f.app.GitOut = func(dir string, args ...string) (string, error) { return "", nil }
 	agent, pushed := f.app.pushWorkflow(context.Background(), "")
@@ -101,7 +101,7 @@ func TestPushRerunsTheAgentWhenAsked(t *testing.T) {
 
 func TestPushCommitsAnAgentsChangesOnlyWhenTheTreeIsDirty(t *testing.T) {
 	// Dirty after the fix run: add -A + commit with the failing check names.
-	f, gates, _ := pushRig(t, "5", "n")
+	f, gates, _ := pushRig(t, "5", "5", "n")
 	*gates = [][]string{{"ESLint"}, nil}
 	f.app.GitOut = func(dir string, args ...string) (string, error) { return " M src/a.ts\n", nil }
 	f.app.pushWorkflow(context.Background(), "")
@@ -112,7 +112,7 @@ func TestPushCommitsAnAgentsChangesOnlyWhenTheTreeIsDirty(t *testing.T) {
 	}
 
 	// Clean tree: nothing staged or committed.
-	g, gates2, _ := pushRig(t, "5", "n")
+	g, gates2, _ := pushRig(t, "5", "5", "n")
 	*gates2 = [][]string{{"ESLint"}, nil}
 	g.app.GitOut = func(dir string, args ...string) (string, error) { return "", nil }
 	g.app.pushWorkflow(context.Background(), "")
@@ -145,9 +145,9 @@ func TestPushRefusesWithoutAGateAndHonoursAQuitAtTheAgentChoice(t *testing.T) {
 	if _, pushed := g.app.pushWorkflow(context.Background(), ""); pushed || len(g.agent) != 0 {
 		t.Error("q at the agent choice stops everything")
 	}
-	// An already-selected agent is not asked again.
-	h, _, _ := pushRig(t, "n")
-	if agent, pushed := h.app.pushWorkflow(context.Background(), "5"); !pushed || agent != "5" || strings.Contains(h.out.String(), "Choose agent") {
+	// A previously selected agent is still asked about again.
+	h, _, _ := pushRig(t, "5", "n")
+	if agent, pushed := h.app.pushWorkflow(context.Background(), "5"); !pushed || agent != "5" || !strings.Contains(h.out.String(), "Choose agent") {
 		t.Errorf("%v %v\n%s", agent, pushed, h.out.String())
 	}
 	var _ agentcmd.Command

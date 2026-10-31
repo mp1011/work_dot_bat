@@ -174,14 +174,17 @@ func ReadLastAssistantMessage(transcript string) string {
 		}
 		var s string
 		if json.Unmarshal(entry.Message.Content, &s) == nil {
-			return s
+			if s != "" {
+				return s
+			}
+			continue
 		}
 		var blocks []struct {
 			Type string `json:"type"`
 			Text string `json:"text"`
 		}
 		if json.Unmarshal(entry.Message.Content, &blocks) != nil {
-			return ""
+			continue
 		}
 		var texts []string
 		for _, bl := range blocks {
@@ -189,7 +192,10 @@ func ReadLastAssistantMessage(transcript string) string {
 				texts = append(texts, bl.Text)
 			}
 		}
-		return strings.Join(texts, "\n")
+		// A turn is split across entries; thinking/tool_use-only entries carry no text.
+		if len(texts) > 0 {
+			return strings.Join(texts, "\n")
+		}
 	}
 	return ""
 }
