@@ -51,6 +51,29 @@ func TestRunFlagAccepted(t *testing.T) {
 	}
 }
 
+func TestQuotaCommandDispatch(t *testing.T) {
+	code, _, stderr := exec(t, []string{"quota", "invalid_agent_xyz"}, "", false, "")
+	if code != 1 || !strings.Contains(stderr, "unknown agent") {
+		t.Errorf("code %d stderr %q", code, stderr)
+	}
+	code, _, stderr = exec(t, []string{"--run", "quotas", "invalid_agent_xyz"}, "", false, "")
+	if code != 1 || !strings.Contains(stderr, "unknown agent") {
+		t.Errorf("code %d stderr %q", code, stderr)
+	}
+}
+
+func TestMonitorCommandDispatch(t *testing.T) {
+	registry, _ := setup(t, []projects.Project{{Name: "test_proj"}})
+	code, _, stderr := exec(t, []string{"monitor", "project=unknown_xyz"}, "", false, registry)
+	if code != 1 || !strings.Contains(stderr, "unknown project") {
+		t.Errorf("code %d stderr %q", code, stderr)
+	}
+	code, _, stderr = exec(t, []string{"--run", "universal_monitor", "project=unknown_xyz"}, "", false, registry)
+	if code != 1 || !strings.Contains(stderr, "unknown project") {
+		t.Errorf("code %d stderr %q", code, stderr)
+	}
+}
+
 
 func TestUnknownProjectNamesRegistered(t *testing.T) {
 	registry, _ := setup(t, []projects.Project{{Name: "foo"}, {Name: "bar", Path: "/bar"}})

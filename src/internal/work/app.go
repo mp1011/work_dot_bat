@@ -89,11 +89,18 @@ func (a App) runAgent() AgentRunner {
 }
 
 func (a App) git(args ...string) int {
+	return a.gitIn(a.Root, args...)
+}
+
+func (a App) gitIn(dir string, args ...string) int {
 	run := a.Git
 	if run == nil {
 		run = worktree.RunCommand
 	}
-	code, err := run("git", args, worktree.RunOpts{Dir: a.Root})
+	if dir == "" {
+		dir = a.Root
+	}
+	code, err := run("git", args, worktree.RunOpts{Dir: dir})
 	if err != nil {
 		a.logf("[ERROR] Failed to execute git: %v", err)
 		return 1
@@ -509,6 +516,12 @@ func (a App) taskStep(ctx context.Context, task *taskmenu.Item, agent *string) f
 		}
 	case "c":
 		a.cancelTask(task, targetDir)
+	case "b":
+		if wt == nil || task.Status != "Ready for Review" {
+			a.logf("\nInvalid option \"%s\". Please select one of %s.", opt, keys)
+			break
+		}
+		a.commitWorkflowIn(targetDir)
 	case "m":
 		merge := a.MergeBack
 		if merge == nil {
@@ -639,15 +652,19 @@ func (a App) cancelTask(task *taskmenu.Item, targetDir string) {
 }
 
 func (a App) commitWorkflow() {
+	a.commitWorkflowIn(a.Root)
+}
+
+func (a App) commitWorkflowIn(dir string) {
 	msg, _ := a.ask("\nEnter commit message: ")
 	if msg == "" {
 		a.log("Commit message cannot be empty. Commit cancelled.")
 		return
 	}
 	a.log("\nStaging all files (git add -A)...")
-	a.git("add", "-A")
+	a.gitIn(dir, "add", "-A")
 	a.logf("Running git commit -m \"%s\"...", msg)
-	a.git("commit", "-m", msg)
+	a.gitIn(dir, "commit", "-m", msg)
 }
 
 // setAutoWorkflow sets `auto: true` on the plan and commits just that file so the Auto Daemon

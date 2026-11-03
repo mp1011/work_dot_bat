@@ -34,7 +34,7 @@ func TestTaskMenuOptions(t *testing.T) {
 		{"suggestion", planstatus.Entry{Status: "Suggestion"}, false, false, "w g c t a"},
 		{"in progress", planstatus.Entry{Status: "In Progress"}, false, false, "w g c t"},
 		{"ready", planstatus.Entry{Status: "Ready for Review"}, false, false, "w g d c t"},
-		{"ready worktree", planstatus.Entry{Status: "Ready for Review"}, true, false, "w g d c m t"},
+		{"ready worktree", planstatus.Entry{Status: "Ready for Review"}, true, false, "w g d c b m t"},
 		{"in progress worktree", planstatus.Entry{Status: "In Progress"}, true, false, "w g c t"},
 		{"done", planstatus.Entry{Status: "Done"}, false, false, "w g t"},
 		{"done worktree", planstatus.Entry{Status: "Done"}, true, false, "w g m t"},
@@ -55,6 +55,17 @@ func TestTaskMenuOptions(t *testing.T) {
 	parent, _ := TaskMenuOptions(&planstatus.Entry{Status: "In Progress"}, false, true)
 	if leaf[0].Label != "Work on Task" || parent[0].Label != "Work on Next Subtask" {
 		t.Errorf("%v %v", leaf[0], parent[0])
+	}
+	readyWt, _ := TaskMenuOptions(&planstatus.Entry{Status: "Ready for Review"}, true, false)
+	foundCommitWt := false
+	for _, opt := range readyWt {
+		if opt.Key == "b" && opt.Label == "Commit Changes to Worktree Branch" {
+			foundCommitWt = true
+			break
+		}
+	}
+	if !foundCommitWt {
+		t.Errorf("expected option 'b' with label 'Commit Changes to Worktree Branch' in %v", readyWt)
 	}
 }
 

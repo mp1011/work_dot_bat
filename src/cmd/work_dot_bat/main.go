@@ -13,8 +13,10 @@ import (
 	"strings"
 
 	"work_dot_bat/src/internal/menu"
+	"work_dot_bat/src/internal/monitor"
 	"work_dot_bat/src/internal/planstatus"
 	"work_dot_bat/src/internal/projects"
+	"work_dot_bat/src/internal/quota"
 	"work_dot_bat/src/internal/repo"
 	"work_dot_bat/src/internal/tools"
 	"work_dot_bat/src/internal/worktree"
@@ -75,6 +77,12 @@ func run(argv []string, e env) int {
 	}
 	if len(argv) > 0 && argv[0] == "list-tasks" {
 		return runPlanStatus(argv, e)
+	}
+	if len(argv) > 0 && (argv[0] == "quota" || argv[0] == "quotas") {
+		return runQuota(argv[1:], e)
+	}
+	if len(argv) > 0 && (argv[0] == "monitor" || argv[0] == "universal_monitor") {
+		return runMonitor(argv[1:], e)
 	}
 	if len(argv) > 0 && argv[0] == "plan-status" {
 		return runPlanStatus(argv[1:], e)
@@ -154,6 +162,38 @@ func gitRoot() (string, bool) {
 		return "", false
 	}
 	return filepath.FromSlash(strings.TrimSpace(string(out))), true
+}
+
+func runQuota(args []string, e env) int {
+	return quota.Run(args, e.stdout, e.stderr)
+}
+
+func runMonitor(args []string, e env) int {
+	projectName, _ := projects.ParseProjectArg(args)
+	projFilter := ""
+	if projectName != nil {
+		projFilter = *projectName
+	}
+	colorFlag := false
+	noColorFlag := false
+	for _, a := range args {
+		if a == "--color" {
+			colorFlag = true
+		} else if a == "--no-color" {
+			noColorFlag = true
+		}
+	}
+	useColor := e.interactive || colorFlag
+	if noColorFlag || os.Getenv("NO_COLOR") != "" {
+		useColor = false
+	}
+	return monitor.Run(monitor.Config{
+		RegistryFile:  e.registry,
+		Stdout:        e.stdout,
+		Stderr:        e.stderr,
+		Colorize:      useColor,
+		ProjectFilter: projFilter,
+	})
 }
 
 func runPlanStatus(args []string, e env) int {

@@ -34,6 +34,9 @@ func TaskMenuOptions(task *planstatus.Entry, hasWorktree, isParent bool) (action
 	if task.Status != "Done" && task.Status != "Cancelled" {
 		actions = append(actions, Option{"c", "Cancel task"})
 	}
+	if hasWorktree && task.Status == "Ready for Review" {
+		actions = append(actions, Option{"b", "Commit Changes to Worktree Branch"})
+	}
 	if hasWorktree && (task.Status == "Ready for Review" || task.Status == "Done") {
 		actions = append(actions, Option{"m", "Merge back into main"})
 	}

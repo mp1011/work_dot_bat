@@ -35,6 +35,7 @@ type fixture struct {
 	agent     []agentcmd.Command // commands the fake agent was given
 	agentDirs []string           // working directories the fake agent was given
 	gitRun    [][]string
+	gitDirs   []string
 	app       App
 	// onAgent runs inside the fake agent.
 	onAgent func(ctx context.Context) int
@@ -62,6 +63,7 @@ func newFixture(t *testing.T, inputs ...string) *fixture {
 		Guard:     func() func() { return func() {} },
 		Git: func(cmd string, args []string, o worktree.RunOpts) (int, error) {
 			f.gitRun = append(f.gitRun, append([]string{cmd}, args...))
+			f.gitDirs = append(f.gitDirs, o.Dir)
 			return 0, nil
 		},
 		RunAgent: func(ctx context.Context, c agentcmd.Command, dir string) (int, error) {
@@ -574,4 +576,56 @@ func TestTaskStepMergeOptionDefaultsToMergeBackWorkflow(t *testing.T) {
 		t.Errorf("expected merge-back workflow output, got:\n%s", f.out.String())
 	}
 }
+
+func TestTaskMenuCommitChangesToWorktreeBranch(t *testing.T) {
+	f := newFixture(t, "b", "commit message for wt", "s")
+	wtDir := t.TempDir()
+	writePlan(t, wtDir, "plans/feature.md", "---\nstatus: Ready for Review\n---\n\n# GOAL\nfeature\n")
+	f.app.Worktrees = func() []planstatus.Worktree {
+		return []planstatus.Worktree{{Path: wtDir, Branch: "feature-branch"}}
+	}
+	f.app.Tasks = func() []planstatus.Entry {
+		return []planstatus.Entry{{Path: "plans/feature.md", Status: "Ready for Review", WorktreeBranch: "feature-branch", WorktreePath: wtDir}}
+	}
+	f.selecting("plans/feature.md")
+	f.run()
+
+	if !strings.Contains(f.out.String(), "b) Commit Changes to Worktree Branch") {
+		t.Errorf("menu output should include 'b) Commit Changes to Worktree Branch':\n%s", f.out.String())
+	}
+	want := "git add -A|git commit -m commit message for wt"
+	var got []string
+	for _, c := range f.gitRun {
+		got = append(got, strings.Join(c, " "))
+	}
+	if strings.Join(got, "|") != want {
+		t.Fatalf("git calls %v, want %s", got, want)
+	}
+	if len(f.gitDirs) != 2 || f.gitDirs[0] != wtDir || f.gitDirs[1] != wtDir {
+		t.Errorf("expected git commands to run in worktree dir %q, got %v", wtDir, f.gitDirs)
+	}
+}
+
+func TestTaskMenuCommitChangesEmptyMessageCancelled(t *testing.T) {
+	f := newFixture(t, "b", "", "s")
+	wtDir := t.TempDir()
+	writePlan(t, wtDir, "plans/feature.md", "---\nstatus: Ready for Review\n---\n\n# GOAL\nfeature\n")
+	f.app.Worktrees = func() []planstatus.Worktree {
+		return []planstatus.Worktree{{Path: wtDir, Branch: "feature-branch"}}
+	}
+	f.app.Tasks = func() []planstatus.Entry {
+		return []planstatus.Entry{{Path: "plans/feature.md", Status: "Ready for Review", WorktreeBranch: "feature-branch", WorktreePath: wtDir}}
+	}
+	f.selecting("plans/feature.md")
+	f.run()
+
+	if !strings.Contains(f.out.String(), "Commit message cannot be empty. Commit cancelled.") {
+		t.Errorf("expected cancellation message, got:\n%s", f.out.String())
+	}
+	if len(f.gitRun) != 0 {
+		t.Errorf("no git commands should be run on empty message, got %v", f.gitRun)
+	}
+}
+
+
 

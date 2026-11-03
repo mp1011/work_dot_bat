@@ -56,6 +56,31 @@ func ParseRateLimitReset(text string, now time.Time) (time.Time, bool) {
 	return time.Date(local.Year(), local.Month(), local.Day()+1, hour, minute, 0, 0, loc), true
 }
 
+var (
+	// agy exits without any assistant message when its quota is exhausted; the only trace is
+	// this log line, e.g. "Print mode: run ended with error and no response: Individual quota
+	// reached. ... Resets in 132h51m44s."
+	agyQuotaRE = regexp.MustCompile(`(?i)run ended with error and no response:[^\r\n]*?(?:quota|RESOURCE_EXHAUSTED)[^\r\n]*`)
+	agyResetRE = regexp.MustCompile(`(?i)resets in\s+((?:\d+h)?(?:\d+m)?(?:\d+(?:\.\d+)?s)?)`)
+)
+
+// classifyAgyQuota recognises an agy run that ended on a quota error; ResetAt comes from the
+// "Resets in 132h51m44s" text when present.
+func classifyAgyQuota(log string, now time.Time) (Verdict, bool) {
+	ms := agyQuotaRE.FindAllString(log, -1)
+	if len(ms) == 0 {
+		return Verdict{}, false
+	}
+	v := Verdict{Status: RateLimited}
+	if m := agyResetRE.FindStringSubmatch(ms[len(ms)-1]); m != nil && m[1] != "" {
+		if d, err := time.ParseDuration(m[1]); err == nil {
+			t := now.Add(d)
+			v.ResetAt = &t
+		}
+	}
+	return v, true
+}
+
 func isLimitMessage(text string) bool {
 	t := strings.TrimSpace(text)
 	return t != "" && utf8.RuneCountInString(t) <= maxLimitMessageLength && rateLimitRE.MatchString(t)
@@ -285,6 +310,13 @@ func FindLatestAgyTranscriptPath(brainDir string) string {
 // ClassifySession classifies a finished run from its transcript. agent uses the ledger
 // vocabulary ("claude"/"c", "agy"/"a").
 func ClassifySession(agent, sessionID, logFile string, exitCode int, dirs Dirs, now time.Time) Verdict {
+	if (agent == "agy" || agent == "a") && logFile != "" {
+		if b, err := os.ReadFile(logFile); err == nil {
+			if v, ok := classifyAgyQuota(string(b), now); ok {
+				return v
+			}
+		}
+	}
 	var last string
 	switch agent {
 	case "codex":

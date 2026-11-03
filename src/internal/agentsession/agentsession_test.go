@@ -201,3 +201,16 @@ func TestReadLastAssistantMessageSkipsTextlessEntries(t *testing.T) {
 		t.Fatalf("expected the last assistant text, got %q", got)
 	}
 }
+
+func TestClassifySessionAgyQuotaExhausted(t *testing.T) {
+	log := filepath.Join(t.TempDir(), "a.log")
+	msg := "E1031 08:44:01.814114       1 session.go:280] Print mode: run ended with error and no response: Individual quota reached. Please upgrade your subscription to increase your limits. Resets in 132h51m44s."
+	if err := os.WriteFile(log, []byte(msg+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 10, 31, 8, 0, 0, 0, time.UTC)
+	v := ClassifySession("agy", "", log, 0, Dirs{AgyBrain: t.TempDir()}, now)
+	if v.Status != RateLimited || v.ResetAt == nil || !v.ResetAt.Equal(now.Add(132*time.Hour+51*time.Minute+44*time.Second)) {
+		t.Fatalf("got %+v", v)
+	}
+}
