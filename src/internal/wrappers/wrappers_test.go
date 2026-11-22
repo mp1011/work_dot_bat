@@ -16,7 +16,7 @@ func TestInstallWritesWrappersForEachTool(t *testing.T) {
 	if len(files) == 0 {
 		t.Fatal("no files reported")
 	}
-	for _, tool := range []string{"work", "auto_daemon", "prepare_for_push"} {
+	for _, tool := range []string{"work", "auto_daemon", "prepare_for_push", "run"} {
 		sh, err := os.ReadFile(filepath.Join(repo, ".tools", tool))
 		if err != nil {
 			t.Fatalf("%s: %v", tool, err)

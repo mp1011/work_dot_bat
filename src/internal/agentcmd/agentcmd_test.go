@@ -139,6 +139,8 @@ func TestChooseAgent(t *testing.T) {
 		"4": "4", "agy-opus": "4",
 		"5": "5", "CLAUDE": "5", "claude": "5",
 		"6": "6", "opus": "6",
+		"9": "9", "neon": "9",
+		"10": "10", "hydrogen": "10",
 	} {
 		io, _ := scripted("zzz", in)
 		if a, quit, ok := ChooseAgent("", io, nil); a != want || quit || !ok {
@@ -159,10 +161,12 @@ func TestChooseAgent(t *testing.T) {
 		"  (6) Claude Code (Opus)",
 		"  (7) OpenAI Codex (GPT-6.1 Sol)",
 		"  (8) OpenAI Codex (GPT-6 Astra)",
+		"  (9) Google Antigravity (Gemini 4 Neon)",
+		"  (10) Google Antigravity (Gemini 4 Hydrogen)",
 		"",
-		"Choose agent (1/2/3/4/5/6/7/8): ",
-		"Invalid agent selection. Please enter one of: 1, 2, 3, 4, 5, 6, 7, 8.",
-		"Choose agent (1/2/3/4/5/6/7/8): ",
+		"Choose agent (1/2/3/4/5/6/7/8/9/10): ",
+		"Invalid agent selection. Please enter one of: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10.",
+		"Choose agent (1/2/3/4/5/6/7/8/9/10): ",
 		"Exiting work script.",
 	}
 	if !reflect.DeepEqual(*out, wantOut) {
@@ -181,13 +185,13 @@ func TestLoadDefinitions(t *testing.T) {
 	}
 	os.WriteFile(filepath.Join(dir, CLIFile), []byte(`{"agents":[
 	  {"id":"claude-sonnet","label":"Sonnet!","args":["--model","sonnet-x"]},
-	  {"id":"gem","key":"9","label":"Gem","cmd":"gem","args":["-m","x"],"printArgs":["-p","{prompt}"],
+	  {"id":"gem","key":"11","label":"Gem","cmd":"gem","args":["-m","x"],"printArgs":["-p","{prompt}"],
 	   "interactiveArgs":["{prompt}"],"session":{"reader":"agy","dir":"D"}},
 	  {"id":"nokey","cmd":"n","session":{"reader":"claude"}},
 	  {"cmd":"anon"}]}`), 0o644)
 	defs := LoadDefinitions(dir)
-	if len(defs) != 9 {
-		t.Fatalf("want 8 built-ins + gem, got %d: %+v", len(defs), defs)
+	if len(defs) != 11 {
+		t.Fatalf("want 10 built-ins + gem, got %d: %+v", len(defs), defs)
 	}
 	s := Settings{Defs: defs}
 	if s.AgentLabel("5") != "Sonnet!" || s.Agent("claude").PrintArgs[0] != "--print" {
@@ -196,7 +200,7 @@ func TestLoadDefinitions(t *testing.T) {
 	if got := BuildCommand("5", CommandOptions{Prompt: "P"}, s); got.Args[1] != "sonnet-x" {
 		t.Errorf("override args: %+v", got)
 	}
-	got := BuildCommand("9", CommandOptions{RepoRoot: root, Prompt: "P"}, s)
+	got := BuildCommand("11", CommandOptions{RepoRoot: root, Prompt: "P"}, s)
 	if want := (Command{"gem", []string{"-m", "x", "-p", "P"}}); !reflect.DeepEqual(got, want) {
 		t.Errorf("custom agent: got %+v want %+v", got, want)
 	}
@@ -221,6 +225,8 @@ func TestModelsAreSeparateAgents(t *testing.T) {
 		"2": "gemini-4-argon", "argon": "gemini-4-argon",
 		"3": "claude-sonnet-5-5", "agy-sonnet": "claude-sonnet-5-5",
 		"4": "claude-opus-5-5", "agy-opus": "claude-opus-5-5",
+		"9": "gemini-4-neon", "neon": "gemini-4-neon",
+		"10": "gemini-4-hydrogen", "hydrogen": "gemini-4-hydrogen",
 	} {
 		cmd := BuildCommand(agent, CommandOptions{Prompt: "P"}, s)
 		found := false
@@ -246,25 +252,25 @@ func TestProjectSettingsAgentCLIFile(t *testing.T) {
 	proj := t.TempDir()
 	os.WriteFile(filepath.Join(proj, CLIFile), []byte(`{"agents":[
 	  {"id":"claude-opus","cmd":"claude2"},
-	  {"id":"gem","key":"9","cmd":"gem","printArgs":["{prompt}"],"session":{"reader":"agy"}}]}`), 0o644)
+	  {"id":"gem","key":"11","cmd":"gem","printArgs":["{prompt}"],"session":{"reader":"agy"}}]}`), 0o644)
 	s := ProjectSettings(proj, proj)
 	got := BuildCommand("6", CommandOptions{Prompt: "P"}, s)
 	if want := (Command{"claude2", []string{"--model", "opus", "--permission-mode", "auto", "--print", "P"}}); !reflect.DeepEqual(got, want) {
 		t.Errorf("got %+v want %+v", got, want)
 	}
-	if got := BuildCommand("9", CommandOptions{Prompt: "P"}, s); got.Cmd != "gem" {
+	if got := BuildCommand("11", CommandOptions{Prompt: "P"}, s); got.Cmd != "gem" {
 		t.Errorf("got %+v", got)
 	}
 }
 
 func TestChooseAgentCustom(t *testing.T) {
-	defs := append(DefaultDefinitions(), Definition{ID: "gem", Key: "9", Label: "Gem"})
-	io, _ := scripted("9")
-	if a, _, ok := ChooseAgent("", io, defs); a != "9" || !ok {
+	defs := append(DefaultDefinitions(), Definition{ID: "gem", Key: "11", Label: "Gem"})
+	io, _ := scripted("11")
+	if a, _, ok := ChooseAgent("", io, defs); a != "11" || !ok {
 		t.Errorf("got %q", a)
 	}
-	io, _ = scripted("9")
-	if a, _, _ := ChooseAgent("", io, defs); a != "9" {
+	io, _ = scripted("11")
+	if a, _, _ := ChooseAgent("", io, defs); a != "11" {
 		t.Errorf("position: got %q", a)
 	}
 }

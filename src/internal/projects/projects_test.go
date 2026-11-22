@@ -643,3 +643,45 @@ func TestProjectEmptyChecksRoundTrip(t *testing.T) {
 
 
 
+
+func TestLaunchCommandsRoundTripAndValidation(t *testing.T) {
+	regFile := filepath.Join(t.TempDir(), "projects.json")
+	proj := Project{
+		Name: "app",
+		Path: "/app",
+		LaunchCommands: []LaunchCommand{
+			{Name: "Dev", Command: Command{Cmd: "npm", Args: []string{"run", "dev"}}},
+		},
+	}
+	if !proj.HasConfig() {
+		t.Fatal("HasConfig() should be true when LaunchCommands is non-empty")
+	}
+	if err := SaveRegistry(regFile, []Project{proj}); err != nil {
+		t.Fatal(err)
+	}
+	loaded, errs, err := LoadRegistry(regFile)
+	if err != nil || len(errs) > 0 {
+		t.Fatalf("LoadRegistry: err=%v errs=%v", err, errs)
+	}
+	if len(loaded) != 1 || len(loaded[0].LaunchCommands) != 1 {
+		t.Fatalf("loaded = %+v", loaded)
+	}
+	if loaded[0].LaunchCommands[0].Name != "Dev" || loaded[0].LaunchCommands[0].Command.Cmd != "npm" {
+		t.Errorf("got %+v", loaded[0].LaunchCommands[0])
+	}
+
+	_, badErrs := ValidateRegistry(map[string]any{
+		"projects": []any{
+			map[string]any{
+				"name": "bad",
+				"path": "/bad",
+				"launchCommands": []any{
+					map[string]any{"name": "", "command": []any{"go", "run", "."}},
+				},
+			},
+		},
+	})
+	if len(badErrs) == 0 {
+		t.Error("expected validation error for empty launchCommand name")
+	}
+}

@@ -18,6 +18,8 @@ The default agents are:
 6. `Claude Code (Opus)` (`claude-opus`) - key `6`
 7. `OpenAI Codex (GPT-6.1 Sol)` (`codex`, aliases `openai`, `codex-sol`, `gpt-6.1-sol`) - key `7`
 8. `OpenAI Codex (GPT-6 Astra)` (`codex-astra`, aliases `astra`, `gpt-6-astra`) - key `8`
+9. `Google Antigravity (Gemini 4 Neon)` (`agy-gemini-4-neon`) - key `9`
+10. `Google Antigravity (Gemini 4 Hydrogen)` (`agy-gemini-4-hydrogen`) - key `10`
 
 Codex passes an explicit `--model` (`gpt-6.1-sol` or `gpt-6-astra`) and uses `--approve-for-me` for automatic approval
 review within the workspace sandbox. Install and authenticate the `codex` CLI before selecting it.
@@ -29,7 +31,7 @@ captured. Codex creates its own session IDs, so the ledger's generated ID is not
 ```json
 { "agents": [
   { "id": "claude-opus", "args": ["--model", "opus", "--permission-mode", "auto"] },
-  { "id": "gem", "key": "9", "label": "Gem CLI", "cmd": "gem",
+  { "id": "gem", "key": "11", "label": "Gem CLI", "cmd": "gem",
     "args": ["-m", "x"], "interactiveArgs": ["{prompt}"], "printArgs": ["-p", "{prompt}"],
     "session": { "reader": "claude", "dir": "~/.gem/sessions" } }
 ] }

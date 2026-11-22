@@ -253,3 +253,21 @@ func TestInstallWrappersCommand(t *testing.T) {
 		t.Errorf("unknown project: code %d stderr %q", code, stderr)
 	}
 }
+
+func TestRunToolDispatch(t *testing.T) {
+	registry, _ := setup(t, []projects.Project{
+		{
+			Name: "myproj",
+			LaunchCommands: []projects.LaunchCommand{
+				{Name: "Echo", Command: projects.Command{Cmd: "go", Args: []string{"version"}}},
+			},
+		},
+	})
+	code, stdout, stderr := exec(t, []string{"run", "project=myproj"}, "1\n", true, registry)
+	if code != 0 {
+		t.Fatalf("expected code 0, got %d. stderr: %s", code, stderr)
+	}
+	if !strings.Contains(stdout, "1) Echo") || !strings.Contains(stdout, "go version") {
+		t.Errorf("expected launch menu in stdout, got:\n%s", stdout)
+	}
+}

@@ -95,6 +95,30 @@
       "printArgs": ["exec", "{prompt}"],
       "printLogFileArgs": ["--output-last-message", "{logFile}"],
       "session": { "reader": "codex", "logFile": true }
+    },
+    {
+      "id": "agy-gemini-4-neon",
+      "key": "9",
+      "aliases": ["agy-neon", "agy-gemini-neon", "neon"],
+      "label": "Google Antigravity (Gemini 4 Neon)",
+      "cmd": "agy",
+      "args": ["--add-dir", "{repoRoot}", "--model", "gemini-4-neon", "--effort", "medium"],
+      "logFileArgs": ["--log-file", "{logFile}"],
+      "interactiveArgs": ["-i", "{prompt}"],
+      "printArgs": ["--print", "{prompt}"],
+      "session": { "reader": "agy", "logFile": true }
+    },
+    {
+      "id": "agy-gemini-4-hydrogen",
+      "key": "10",
+      "aliases": ["agy-hydrogen", "agy-gemini-hydrogen", "hydrogen"],
+      "label": "Google Antigravity (Gemini 4 Hydrogen)",
+      "cmd": "agy",
+      "args": ["--add-dir", "{repoRoot}", "--model", "gemini-4-hydrogen", "--effort", "medium"],
+      "logFileArgs": ["--log-file", "{logFile}"],
+      "interactiveArgs": ["-i", "{prompt}"],
+      "printArgs": ["--print", "{prompt}"],
+      "session": { "reader": "agy", "logFile": true }
     }
   ]
 }

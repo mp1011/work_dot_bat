@@ -14,7 +14,7 @@ import (
 const Dir = ".tools"
 
 // Tools are the launchers that get a wrapper.
-var Tools = []string{"work", "auto_daemon", "prepare_for_push"}
+var Tools = []string{"work", "auto_daemon", "prepare_for_push", "run"}
 
 // Install (re)writes the wrappers for project into repoPath/.tools, pointing at toolRoot/.tools.
 // It returns the files written. The repo directory must already exist.

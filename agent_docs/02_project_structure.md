@@ -40,6 +40,10 @@ This is a practical map of the repository. Summaries are intentionally brief.
   - `build-local.bat` - Windows equivalent of `build-local.sh`
   - `work_dot_bat` - legacy alias forwarding to `work --run`
   - `work_dot_bat.bat` - legacy Windows alias forwarding to `work.bat --run`
+  - `monitor` - <!-- TODO: summarize -->
+  - `monitor.bat` - <!-- TODO: summarize -->
+  - `quota` - <!-- TODO: summarize -->
+  - `quota.bat` - <!-- TODO: summarize -->
 - `src\`
   - `cmd\`
     - `work_dot_bat\`
@@ -179,6 +183,13 @@ This is a practical map of the repository. Summaries are intentionally brief.
     - `immediate\`
       - `immediate.go` - the one-slot `immediate` plan inbox for failed automations
       - `immediate_test.go` - tests for the immediate plan
+    - `monitor\`
+      - `monitor.go` - <!-- TODO: summarize -->
+      - `monitor_test.go` - <!-- TODO: summarize -->
+      - `proc.go` - <!-- TODO: summarize -->
+    - `quota\`
+      - `quota.go` - <!-- TODO: summarize -->
+      - `quota_test.go` - <!-- TODO: summarize -->
   - `vendor\`
     - `manifest.json` - catalogue of vendored files with version, date and sha256
     - `scripts\`

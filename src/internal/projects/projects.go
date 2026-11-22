@@ -112,6 +112,12 @@ type ExtraCheck struct {
 	Command Command `json:"command"`
 }
 
+// LaunchCommand is a named application launch command stored in projects.json.
+type LaunchCommand struct {
+	Name    string  `json:"name"`
+	Command Command `json:"command"`
+}
+
 type Project struct {
 	Name                 string         `json:"name"`
 	Path                 string         `json:"path"`
@@ -119,8 +125,9 @@ type Project struct {
 	Build                []Command      `json:"build,omitempty"`
 	Install              *Command       `json:"install,omitempty"`
 	DevServer            *Command       `json:"devServer,omitempty"`
-	Checks               []string       `json:"checks,omitempty"`
-	ExtraChecks          []ExtraCheck   `json:"extraChecks,omitempty"`
+	Checks               []string        `json:"checks,omitempty"`
+	ExtraChecks          []ExtraCheck    `json:"extraChecks,omitempty"`
+	LaunchCommands       []LaunchCommand `json:"launchCommands,omitempty"`
 	WorktreeCopyFiles    []string       `json:"worktreeCopyFiles,omitempty"`
 	ProjectStructureDoc  string         `json:"projectStructureDoc,omitempty"`
 	ProjectStructureDirs []string       `json:"projectStructureDirs,omitempty"`
@@ -142,6 +149,7 @@ type rawProject struct {
 	DevServer            *Command        `json:"devServer,omitempty"`
 	Checks               *[]string       `json:"checks,omitempty"`
 	ExtraChecks          []ExtraCheck    `json:"extraChecks,omitempty"`
+	LaunchCommands       []LaunchCommand `json:"launchCommands,omitempty"`
 	WorktreeCopyFiles    []string        `json:"worktreeCopyFiles,omitempty"`
 	ProjectStructureDoc  string          `json:"projectStructureDoc,omitempty"`
 	ProjectStructureDirs []string        `json:"projectStructureDirs,omitempty"`
@@ -162,6 +170,7 @@ func (p Project) MarshalJSON() ([]byte, error) {
 		Install:              p.Install,
 		DevServer:            p.DevServer,
 		ExtraChecks:          p.ExtraChecks,
+		LaunchCommands:       p.LaunchCommands,
 		WorktreeCopyFiles:    p.WorktreeCopyFiles,
 		ProjectStructureDoc:  p.ProjectStructureDoc,
 		ProjectStructureDirs: p.ProjectStructureDirs,
@@ -201,6 +210,7 @@ func (p *Project) UnmarshalJSON(b []byte) error {
 		p.Checks = *raw.Checks
 	}
 	p.ExtraChecks = raw.ExtraChecks
+	p.LaunchCommands = raw.LaunchCommands
 	p.WorktreeCopyFiles = raw.WorktreeCopyFiles
 	p.ProjectStructureDoc = raw.ProjectStructureDoc
 	p.ProjectStructureDirs = raw.ProjectStructureDirs
@@ -221,6 +231,7 @@ func (p Project) HasConfig() bool {
 		p.DevServer != nil ||
 		p.Checks != nil ||
 		len(p.ExtraChecks) > 0 ||
+		len(p.LaunchCommands) > 0 ||
 		len(p.WorktreeCopyFiles) > 0 ||
 		p.ProjectStructureDoc != "" ||
 		len(p.ProjectStructureDirs) > 0 ||
@@ -555,25 +566,12 @@ func ValidateRegistry(data any) (projects []Project, errs []string) {
 
 		// extraChecks
 		if rawExtra, exists := entry["extraChecks"]; exists && rawExtra != nil {
-			arr, ok := rawExtra.([]any)
-			valid := ok
-			if ok {
-				for _, item := range arr {
-					m, isMap := item.(map[string]any)
-					if !isMap {
-						valid = false
-						break
-					}
-					n, isStr := m["name"].(string)
-					if !isStr || strings.TrimSpace(n) == "" || !isCommandObj(m["command"]) {
-						valid = false
-						break
-					}
-				}
-			}
-			if !valid {
-				configErrs = append(configErrs, label+`: "extraChecks" must be an array of { name, command }`)
-			}
+			configErrs = append(configErrs, validateNamedCommands(rawExtra, label, "extraChecks")...)
+		}
+
+		// launchCommands
+		if rawLaunch, exists := entry["launchCommands"]; exists && rawLaunch != nil {
+			configErrs = append(configErrs, validateNamedCommands(rawLaunch, label, "launchCommands")...)
 		}
 
 		// worktreeCopyFiles
@@ -635,6 +633,29 @@ func ValidateRegistry(data any) (projects []Project, errs []string) {
 		projects = append(projects, proj)
 	}
 	return projects, errs
+}
+
+func validateNamedCommands(raw any, label, field string) []string {
+	arr, ok := raw.([]any)
+	valid := ok
+	if ok {
+		for _, item := range arr {
+			m, isMap := item.(map[string]any)
+			if !isMap {
+				valid = false
+				break
+			}
+			n, isStr := m["name"].(string)
+			if !isStr || strings.TrimSpace(n) == "" || !isCommandObj(m["command"]) {
+				valid = false
+				break
+			}
+		}
+	}
+	if !valid {
+		return []string{fmt.Sprintf(`%s: %q must be an array of { name, command }`, label, field)}
+	}
+	return nil
 }
 
 func isCommandObj(v any) bool {

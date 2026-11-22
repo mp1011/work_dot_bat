@@ -69,7 +69,9 @@ func LoadConfig(root string) (Config, error) {
 	if !os.IsNotExist(err) {
 		return Config{}, err
 	}
-	raw, err := projectconfig.ForProject(root, root)
+	// In a linked worktree the registry entry lives under the main checkout's path.
+	mainRoot := repo.FindMainRepoRoot(root)
+	raw, err := projectconfig.ForProject(root, mainRoot)
 	if err != nil {
 		return Config{}, fmt.Errorf("No %s in %s", projectconfig.ConfigFile, root)
 	}
@@ -84,7 +86,7 @@ func LoadConfig(root string) (Config, error) {
 	}
 	regFile := projects.DefaultRegistryFile()
 	if list, _, err := projects.LoadRegistry(regFile); err == nil {
-		if proj := projects.FindProjectByPath(list, root); proj != nil && !proj.Tests.IsEmpty() {
+		if proj := projects.FindProjectByPath(list, mainRoot); proj != nil && !proj.Tests.IsEmpty() {
 			c.Tests = &proj.Tests
 		}
 	}

@@ -90,6 +90,8 @@ func DefaultDefinitions() []Definition {
 			PrintLogFileArgs: []string{"--output-last-message", "{logFile}"},
 			Session:          Session{Reader: ReaderCodex, LogFile: true},
 		},
+		agy("agy-gemini-4-neon", "9", "Google Antigravity (Gemini 4 Neon)", "gemini-4-neon", "agy-neon", "agy-gemini-neon", "neon"),
+		agy("agy-gemini-4-hydrogen", "10", "Google Antigravity (Gemini 4 Hydrogen)", "gemini-4-hydrogen", "agy-hydrogen", "agy-gemini-hydrogen", "hydrogen"),
 	}
 }
 
